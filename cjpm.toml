@@ -1,0 +1,13 @@
+[dependencies]
+  magic = { git = "https://gitcode.com/Cangjie-TPC/CangjieMagic.git", branch = "dev" }
+[package]
+  cjc-version = "0.53.18"
+  compile-option = ""
+  description = "nothing here"
+  link-option = ""
+  name = "Magic"
+  output-type = "executable"
+  src-dir = "src"
+  target-dir = "target"
+  version = "1.0.0"
+  package-configuration = {}

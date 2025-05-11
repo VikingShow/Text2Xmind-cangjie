@@ -1,0 +1,100 @@
+[31merror[0m: undeclared identifier 'action'
+  [36m==>[0m C:\Users\SowrJam\workspace\Magic\src\main.cj:32:22:
+   [36m| [0m
+[36m32[0m [36m| [0m        return "...${action}...${purpose}...${expectation}..."[0m
+   [36m| [0m                     [31m^ [0m
+   [36m| [0m
+[34mnote[0m: which is expanded as follows
+    [36m| [0m
+    [36m| [0m/* 19.9 */        return "...${action}...${purpose}...${expectation}..."[0m
+    [36m| [0m                               [34m^^^^^^ [0m
+    [36m| [0m
+[34mnote[0m: the error occurs after the macro is expanded
+  [36m==>[0m C:\Users\SowrJam\workspace\Magic\src\main.cj:19:1:
+   [36m| [0m
+[36m19[0m [36m| [0m  @promptPattern[0m
+   [36m| [0m [34m_[0m[34m^[0m
+[36m20[0m [36m| [0m[34m|[0m class ARM {[0m
+   [36m| [0m[34m|[0m ...[0m
+[36m34[0m [36m| [0m[34m|[0m }[0m
+   [36m| [0m[34m|[0m[34m_[0m[34m^[0m
+   [36m| [0m
+[34mnote[0m: the code after the macro is expanded as follows
+    [36m| [0m
+    [36m| [0m  /* 19.1 */class ARM {[0m
+    [36m| [0m [34m_[0m[34m^[0m
+    [36m| [0m[34m|[0m /* 19.2 */    let analyze: String[0m
+    [36m| [0m[34m|[0m /* 19.3 */    [0m
+    [36m| [0m[34m|[0m /* 19.4 */    let refining: String[0m
+    [36m| [0m[34m|[0m /* 19.5 */    [0m
+    [36m| [0m[34m|[0m /* 19.6 */    let toMap: String[0m
+    [36m| [0m[34m|[0m /* 19.7 */    [0m
+    [36m| [0m[34m|[0m /* 19.8 */    public func toString(): String {[0m
+    [36m| [0m[34m|[0m /* 19.9 */        return "...${action}...${purpose}...${expectation}..."[0m
+    [36m| [0m[34m|[0m /* 19.10 */    }[0m
+    [36m| [0m[34m|[0m /* 19.11 */    [0m
+    [36m| [0m[34m|[0m /* 19.12 */    [0m
+    [36m| [0m[34m|[0m /* 19.13 */    [0m
+    [36m| [0m[34m|[0m /* 19.14 */    public init(analyze!: String, refining!: String, toMap!: String) {[0m
+    [36m| [0m[34m|[0m /* 19.15 */        this.analyze = analyze[0m
+    [36m| [0m[34m|[0m /* 19.16 */        this.refining = refining[0m
+    [36m| [0m[34m|[0m /* 19.17 */        this.toMap = toMap[0m
+    [36m| [0m[34m|[0m /* 19.18 */    }[0m
+    [36m| [0m[34m|[0m /* 19.19 */    [0m
+    [36m| [0m[34m|[0m /* 19.20 */    [0m
+    [36m| [0m[34m|[0m /* 19.21 */    public static func getElementNames(): Array < String > {[0m
+    [36m| [0m[34m|[0m /* 19.22 */        return["analyze", "refining", "toMap"][0m
+    [36m| [0m[34m|[0m /* 19.23 */    }[0m
+    [36m| [0m[34m|[0m /* 19.24 */    [0m
+    [36m| [0m[34m|[0m /* 19.25 */    [0m
+    [36m| [0m[34m|[0m /* 19.26 */}[0m
+    [36m| [0m[34m|[0m /* 19.27 */[0m
+    [36m| [0m[34m|[0m[34m_[0m[34m__________^[0m
+    [36m| [0m
+
+[31merror[0m: undeclared identifier 'purpose'
+  [36m==>[0m C:\Users\SowrJam\workspace\Magic\src\main.cj:32:34:
+   [36m| [0m
+[36m32[0m [36m| [0m        return "...${action}...${purpose}...${expectation}..."[0m
+   [36m| [0m                                 [31m^ [0m
+   [36m| [0m
+[34mnote[0m: which is expanded as follows
+    [36m| [0m
+    [36m| [0m/* 19.9 */        return "...${action}...${purpose}...${expectation}..."[0m
+    [36m| [0m                                           [34m^^^^^^^ [0m
+    [36m| [0m
+[34mnote[0m: the error occurs after the macro is expanded
+  [36m==>[0m C:\Users\SowrJam\workspace\Magic\src\main.cj:19:1:
+   [36m| [0m
+[36m19[0m [36m| [0m  @promptPattern[0m
+   [36m| [0m [34m_[0m[34m^[0m
+[36m20[0m [36m| [0m[34m|[0m class ARM {[0m
+   [36m| [0m[34m|[0m ...[0m
+[36m34[0m [36m| [0m[34m|[0m }[0m
+   [36m| [0m[34m|[0m[34m_[0m[34m^[0m
+   [36m| [0m
+
+[31merror[0m: undeclared identifier 'expectation'
+  [36m==>[0m C:\Users\SowrJam\workspace\Magic\src\main.cj:32:47:
+   [36m| [0m
+[36m32[0m [36m| [0m        return "...${action}...${purpose}...${expectation}..."[0m
+   [36m| [0m                                              [31m^ [0m
+   [36m| [0m
+[34mnote[0m: which is expanded as follows
+    [36m| [0m
+    [36m| [0m/* 19.9 */        return "...${action}...${purpose}...${expectation}..."[0m
+    [36m| [0m                                                        [34m^^^^^^^^^^^ [0m
+    [36m| [0m
+[34mnote[0m: the error occurs after the macro is expanded
+  [36m==>[0m C:\Users\SowrJam\workspace\Magic\src\main.cj:19:1:
+   [36m| [0m
+[36m19[0m [36m| [0m  @promptPattern[0m
+   [36m| [0m [34m_[0m[34m^[0m
+[36m20[0m [36m| [0m[34m|[0m class ARM {[0m
+   [36m| [0m[34m|[0m ...[0m
+[36m34[0m [36m| [0m[34m|[0m }[0m
+   [36m| [0m[34m|[0m[34m_[0m[34m^[0m
+   [36m| [0m
+
+3 errors generated, 3 errors printed.
+Error: compile package Magic failed, return code is 1
