@@ -3,8 +3,8 @@
     "Magic": {
       "rootPackageName": "Magic",
       "fileNameHash": "921013867337717914",
-      "timeStamp": 1746932885,
-      "buildFlag": false,
+      "timeStamp": 1746932955,
+      "buildFlag": true,
       "exeName": "",
       "hasSubPkgs": false
     }
