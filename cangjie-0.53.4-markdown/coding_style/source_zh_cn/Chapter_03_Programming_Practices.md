@@ -1,0 +1,4818 @@
+
+
+
+
+
+
+编程实践 \- 仓颉语言编程规范
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1. [**1\.** 概述](../source_zh_cn/Chapter_01_Overview.html)
+2. [**2\.** 编码风格](../source_zh_cn/Chapter_02_Code_Style.html)
+3. [**3\.** 编程实践](../source_zh_cn/Chapter_03_Programming_Practices.html)
+4. [**4\.** 附录](../source_zh_cn/Chapter_04_Appendix.html)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+* Light
+* Rust
+* Coal
+* Navy
+* Ayu
+
+
+
+
+
+
+仓颉语言编程规范
+========
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[编程实践](#编程实践)
+=============
+
+
+[声明](#声明)
+---------
+
+
+### [G.DCL.01 避免遮盖（shadow）](#gdcl01-避免遮盖shadow)
+
+
+【级别】建议
+
+
+【描述】
+
+
+由于变量、类型、函数、包名共享一个命名空间，这几类实体之间重用名字会发生遮盖 (shadow)，因此，需尽量避免无关的实体之间发生遮盖 (shadow)；
+
+
+否则，这种源代码上的模糊性，会给维护者和检视者带来很大的困扰和负担。尤其是当代码既需要访问复用的标识符，又需要访问被覆盖的标识符时。当复用的标识符在不同的包里时，这个负担会变得更加沉重。
+
+
+【反例】
+
+
+
+```
+main(): Unit {
+    var name = ""
+    var fn = {=>
+        var name = "Zhang"  // Shadow
+        println(name)
+    }
+
+    println(name)  // prints ""
+    fn()  // prints "Zhang"
+}
+
+```
+
+类似地，类型参数名称也要尽量避免遮盖。
+
+
+【反例】
+
+
+
+```
+class Foo<T> {
+    static func foo<T>(a: T): T { return a }
+
+    func goo(a: T): T { return a }
+}
+
+```
+
+上面代码中静态泛型函数的类型参数 `T` 遮盖了泛型类的类型参数 `T`。
+
+
+[函数](#函数)
+---------
+
+
+### [G.FUN.01 函数功能要单一](#gfun01-函数功能要单一)
+
+
+【级别】建议
+
+
+【描述】
+
+
+过长的函数往往意味着函数功能不单一，可以进行进一步拆分或分层。过于复杂的函数不利于阅读理解，难以维护。
+
+
+可以考虑从以下维度间接衡量函数功能是否单一：
+
+
+* 函数行数，建议不超过 50 行（非空非注释）；
+* 除构造函数外，函数的参数，建议不超过 5 个；
+* 函数最大代码块嵌套不要过深，建议不要超过 4 层。函数的代码块嵌套深度指的是函数中的代码控制块（例如：if、for、while、match 等）之间互相包含的深度。
+
+
+### [G.FUN.02 禁止函数有未被使用的参数](#gfun02-禁止函数有未被使用的参数)
+
+
+【级别】要求
+
+
+【描述】
+
+
+未被使用的参数往往是因为设计发生了变动造成的，它可能导致传参时出现不正确的参数匹配。
+
+
+【反例】
+
+
+
+```
+func logInfo(fileName: String, lineNo: Int64): Unit {
+    println(fileName)
+}
+
+```
+
+例外：回调函数和 interface 实现等情形，可以用`_`代替未被使用的参数。
+
+
+
+```
+interface I {
+    func f(cfg: String) {
+        println(cfg)
+    }
+}
+
+class DefaultImpl <: I {
+    func f(_: String) {
+        println("default")
+    }
+}
+
+```
+
+### [G.FUN.03 避免在无关的函数之间重用名字，构成重载](#gfun03-避免在无关的函数之间重用名字构成重载)
+
+
+【级别】建议
+
+
+【描述】
+
+
+函数重载的主要作用是使用同一个函数名来接受不同的参数实现相似的任务，为了代码的可读性和可维护性，应尽量避免完成不同任务的函数之间构成重载 (overload)。如果多个函数之间有必要构成重载，那么应满足以下要求：
+
+
+* 它们应在同一个类型或文件内依次定义，避免重载的多个函数出现在不同作用域层级；
+* 构成重载的函数之间应尽量避免同一组实参能通过多个函数的类型检查。
+
+
+以上对函数重载的建议，指的是一个团队内部自定义的函数之间构成重载的建议，以下情形可以例外：
+
+
+* 如果和第三方或标准库中的函数之间有必要构成重载，可以出现在不同包；
+* 如果有必要进行操作符重载，操作符重载函数可以出现在不同文件或不同包；
+* 父类和子类的函数之间如果有必要成重载，可以出现在不同文件或包。
+
+
+【反例】
+
+
+以下例子中，在 `package a` 定义了函数 `fn(a: Derived)`，在 `package b` 定义了 `fn(a: Base)` 的重载函数，由于两个重载函数在不同的作用域层级，导致在 `package b` 中调用 `fn` 时，根据作用域优先级原则，选择不是最匹配的 `fn(a: Base)`。
+
+
+另一个不符合规范的例子是，两个构成重载的函数 `g` 的对应位置参数类型为被实例化的关系或父子类型关系，函数调用时两个函数均通过类型检查，但根据最匹配原则，没有最匹配函数，导致无法决议。
+
+
+
+```
+package a
+public open class Base {
+    ...
+}
+public class Derived <: Base {
+    ...
+}
+
+public func fn(a: Derived) {
+    ...
+}
+
+////
+package b
+import a.Base
+import a.Derived
+import a.fn
+
+func fn(a: Base) { // 不符合：两个 fn 在不同的作用域层级
+    ...
+}
+
+main() {
+    fn(Derived()) // 根据作用域优先级原则，调用的是 fn(a: Base)
+    g(Derived(), Derived()) // 根据最匹配原则，没有最匹配函数，无法决议
+}
+
+// 不符合: 两个 g 的对应位置参数类型为被实例化的关系或父子类型关系，很容易构造实参让两个均通过类型检查
+func g<X>(a: X, b: Derived) {
+    ...
+}
+func g(a: Derived, b: Base) {
+    ...
+}
+
+```
+
+【正例】
+
+
+
+```
+public open class Base {
+    // CODE
+}
+public class Derived <: Base {
+    // CODE
+}
+
+// 符合：构成重载的函数在同一层作用域内依次出现，且参数之间不存在子类型或被实例化的关系
+func fn(a: Base) {
+    // CODE
+}
+func fn(a: Int64) {
+    // CODE
+}
+
+```
+
+[类](#类)
+-------
+
+
+### [G.CLS.01 override 父类函数时不要增加函数的可访问性](#gcls01-override-父类函数时不要增加函数的可访问性)
+
+
+【级别】建议
+
+
+【描述】
+
+
+增加 override 函数的可访问性，子类将拥有比预期更大的访问权限。
+
+
+【反例】
+
+
+
+```
+open class Base {
+    protected open func f(a: Int64): Int64 {
+        return a
+    }
+}
+class Sub <: Base {
+    public override func f(a: Int64): Int64 {
+        super.f(a)
+        //do some sensitive operations
+    }
+
+    public func g(a: Int64): Int64 {
+        super.f(a)  // 这种也算是增加可访问性。
+    }
+}
+
+```
+
+上面的错误代码中，子类 override 了基类的 `f()` 函数，并增加了函数的可访问性。基类 `Base` 定义的 `f()` 函数为 `protected` 的，子类 `Sub` 定义该函数为 `public` 的，从而增加了 `f()` 的访问性。因此，任何 `Sub` 的使用者都可以调用此函数。
+
+
+【正例】
+
+
+
+```
+open class Base {
+    protected open func f(a: Int64): Int64 {
+        //do some sensitive operations
+        return a
+    }
+}
+class Sub <: Base {
+    protected override func f(a: Int64): Int64 {
+        return a + 1
+    }
+}
+
+```
+
+该正确示例中，子类覆写的基类 `f()` 函数与基类保持一致为 `protected`。
+
+
+### [G.CLS.02 创建对象优先使用构造函数，慎用静态工厂方法](#gcls02-创建对象优先使用构造函数慎用静态工厂方法)
+
+
+【级别】建议
+
+
+【描述】
+
+
+静态工厂方法是一种将对象的构造与使用相分离的设计模式，它使用一个（或一系列）静态函数代替构造函数来构造数据。
+
+
+在仓颉中应优先使用构造函数来构造对象，除了下文提到的例外情况，尽量避免使用静态工厂方法。
+
+
+首先，若必须使用，为了方便识别，静态工厂方法的名称应包含 from, of, valueOf, instance, get, new, create 等常用关键字来突出构造作用。
+如果为了区别无法仅从参数中识别的多种构造方法，各个静态工厂函数的名称也应有所区别以解释具体的构造方式。
+
+
+仓颉语言支持命名参数和操作符重载，在只用作区分构造方式的目的时，比起静态工厂方法，
+应优先考虑带命名参数的构造函数、单位常量乘以数目等更直观的构造方式。在这些方法都难以理解时再考虑静态工厂方法。
+
+
+【反例】
+
+
+
+```
+class Weight {
+    private static const G_PER_KG = 1000.0
+    let g: Int64
+
+    Weight(gram: Int64, kilo: Float64) {
+        g = gram + Int64(kilo * G_PER_KG)
+    }
+    init(gram: Int64) {
+        this(gram, 0.0)
+    }
+    init(kilo: Float64) {
+        this(0, kilo)
+    }
+}
+
+// 不符合，难以区分
+main() {
+    let w1 = Weight(1)
+    let w2 = Weight(0.5)
+    let w3 = Weight(1, 2.0)
+}
+
+```
+
+
+```
+class Weight {
+    private static const G_PER_KG = 1000.0
+    private Weight(let g: Int64) {}
+
+    static func ofGram(gram: Int64) {
+        Weight(gram)
+    }
+    static func ofKilo(kilo: Float64) {
+        Weight(Int64(kilo * G_PER_KG))
+    }
+    static func ofGramNKilo(gram: Int64, kilo: Float64) {
+        Weight(gram + Int64(kilo * G_PER_KG))
+    }
+}
+
+// 不符合，有更直观的替代方式
+main() {
+    let w1 = Weight.ofGram(1)
+    let w2 = Weight.ofKilo(0.5)
+    let w3 = Weight.ofGramNKilo(1, 2.0)
+}
+
+```
+
+【正例】
+
+
+
+```
+class Weight {
+    private static const G_PER_KG = 1000.0
+    let g: Int64
+
+    Weight(gram!: Int64, kilo!: Float64) {
+        g = gram + Int64(kilo * G_PER_KG)
+    }
+    init(gram!: Int64) {
+        this(gram: gram, kilo: 0.0)
+    }
+    init(kilo!: Float64) {
+        this(gram: 0, kilo: kilo)
+    }
+}
+
+/* 符合，优先使用 */
+main() {
+    let w1 = Weight(gram: 1)
+    let w2 = Weight(kilo: 0.5)
+    let w3 = Weight(gram: 1, kilo: 2.0)
+}
+
+```
+
+
+```
+class Weight {
+    private static const G_PER_KG = 1000
+    private Weight(let g: Int64) {}
+
+    static let gram = Weight(1)
+    static let kilo = Weight(G_PER_KG)
+
+    operator func *(rhs: Int64) {
+        Weight(g * rhs)
+    }
+    operator func *(rhs: Float64) {
+        Weight(Int64(Float64(g) * rhs))
+    }
+    operator func +(rhs: Weight) {
+        Weight(g + rhs.g)
+    }
+}
+
+extend Int64 {
+    operator func *(rhs: Weight) {
+        rhs * this
+    }
+}
+
+extend Float64 {
+    operator func *(rhs: Weight) {
+        rhs * this
+    }
+}
+
+/* 符合，优先使用 */
+main() {
+    let w1 = 1 * Weight.gram
+    let w2 = 0.5 * Weight.kilo
+    let w3 = 1 * Weight.kilo + 2 * Weight.gram
+}
+
+```
+
+
+```
+import std.random.Random
+
+class BigInteger {
+
+    /* ....... */
+
+    static func probablePrime(bitWidth: Int64, rnd: Random) {
+
+        /* some complex computation */
+        /* ............ */
+
+        BigInteger()
+    }
+}
+
+main() {
+    // 符合，较为复杂，仅用命名参数难以解释清楚
+    let rndPrime = BigInteger.probablePrime(16, Random())
+}
+
+```
+
+另一种允许使用静态工厂方法的情况是在需要获得缓存的对象时，构造函数总是会构造新的对象，此时可以使用静态工厂方法来达到访问缓存的目的。
+一些典型的情况包括：不可变类型、与资源绑定的类型、构造过程非常耗时的类型等
+
+
+【正例】
+
+
+
+```
+import std.collection.HashMap
+
+class ImmutableData {
+    private static let cache = HashMap<String, ImmutableData>()
+
+    // 符合，返回缓存的不可变对象
+    public static func getByName(name: String) {
+        if (cache.contains(name)) {
+            return cache[name]
+        } else {
+            cache[name] = ImmutableData(name)
+            return cache[name]
+        }
+    }
+
+    private ImmutableData(name: String) {
+        // some very time-consuming process
+    }
+}
+
+main() {
+    let d1 = ImmutableData.getByName("abc") // new
+    let d2 = ImmutableData.getByName("abc") // cached
+}
+
+```
+
+最后一种情形是返回接口的实例从而将接口与实现类解耦，达到隐藏实现细节或者按需替换实现类的目的。
+
+
+【正例】
+
+
+
+```
+sealed interface I1 {
+    // 符合，隐藏实现细节
+    static func getInstance() {
+        return C1() as I1
+    }
+    func Safe():Unit
+}
+
+interface I2 <: I1 {
+    func Safe():Unit
+    func Secret():Unit
+}
+
+class C1 <: I2 {
+    public func Safe():Unit {}
+    public func Secret():Unit {}
+}
+
+```
+
+
+```
+sealed interface I1 {
+    // 符合，根据输入选择实现方式
+    static func fromInt(i: Int64) {
+        if (i > 100) {
+            return ImplForLarge() as I1
+        } else {
+            return ImplForSmall() as I1
+        }
+    }
+    func foo():Unit
+}
+
+class ImplForLarge <: I1 {
+    public func foo():Unit {}
+}
+
+class ImplForSmall <: I1 {
+    public func foo():Unit {}
+}
+
+```
+
+[接口](#接口)
+---------
+
+
+### [G.ITF.01 对于需要原地修改对象自身的抽象函数，尽量使用 mut 修饰，以支持 struct 类型实现或扩展该接口](#gitf01-对于需要原地修改对象自身的抽象函数尽量使用-mut-修饰以支持-struct-类型实现或扩展该接口)
+
+
+【级别】建议
+
+
+【描述】
+
+
+**说明：** 如果对于可能需要原地修改的函数不声明为 mut 函数，未来就不能被 struct 类型实现，会导致接口的抽象能力降低。
+
+
+【正例】
+
+
+
+```
+interface Increasable {
+    mut func increase(): Unit
+}
+
+struct R <: Increasable {
+    var item = 0
+    public mut func increase(): Unit {
+        item += 1
+    }
+}
+
+```
+
+【反例】
+
+
+
+```
+interface Increasable {
+    func increase(): Unit // 不符合：struct 类型实现该接口时，无法实际被修改
+}
+
+struct R <: Increasable {
+    var item = 0
+    public func increase(): Unit {
+        item += 1  // item 不能被实际修改
+    }
+}
+
+```
+
+### [G.ITF.02 尽量在类型定义处就实现接口，而不是通过扩展实现接口](#gitf02-尽量在类型定义处就实现接口而不是通过扩展实现接口)
+
+
+【级别】建议
+
+
+【描述】
+
+
+**说明：**
+
+
+* 通过扩展实现接口不应该被滥用，如果一个类型在定义时就已知将要实现的接口信息，应该将接口直接声明出来，有利于使用者集中浏览信息。
+* 通过扩展实现的接口，和类型定义处声明实现接口，在实现层面可能带来协变层面的问题。这个开发者可能不容易感知，但尽量在定义处声明实现接口，可以有效避免。
+
+
+【反例】
+
+
+
+```
+interface I {
+    func f(): Unit
+}
+
+class C {}
+
+extend C <: I {
+    public func f(): Unit {}
+}
+
+main() {
+    let i: I = C() // ok
+
+    let f1: () -> C = { => C() }
+    let f2: () -> I = f1 // 报错，虽然 () -> C 是 () -> I 的子类型，但 C 通过扩展实现 I，此时不能协变，导致不能赋值。
+    return 0
+}
+
+```
+
+【正例】
+
+
+
+```
+interface I {
+    func f(): Unit
+}
+
+// 符合：类型定义处实现接口
+class A <: I {
+    public func f(): Unit {
+        // CODE
+    }
+}
+
+```
+
+### [G.ITF.03 类型定义时避免同时声明实现父接口和子接口](#gitf03-类型定义时避免同时声明实现父接口和子接口)
+
+
+【级别】建议
+
+
+【描述】
+
+
+同时实现父接口和子接口时，父接口属于冗余信息，对用户甄别信息造成困扰。避免声明重复的父接口可以让声明保持简洁。
+
+
+
+```
+interface Base {
+    func f1(): Unit
+}
+
+interface Sub <: Base {
+    func f2(): Unit
+}
+
+// 符合
+class A <: Sub {
+    public func f1(): Unit {
+        // CODE
+    }
+
+    public func f2(): Unit {
+        // CODE
+    }
+}
+
+// 不符合
+class B <: Sub & Base {
+    public func f1(): Unit {
+        // CODE
+    }
+
+    public func f2(): Unit {
+        // CODE
+    }
+}
+
+```
+
+### [G.ITF.04 尽量通过泛型约束使用接口，而不是直接将接口作为类型使用](#gitf04-尽量通过泛型约束使用接口而不是直接将接口作为类型使用)
+
+
+【级别】建议
+
+
+【描述】
+
+
+class 以外的类型转型到 interface 可能会附带装箱操作，而作为泛型约束的方式使用 interface 可以直接静态派发，避免装箱和动态派发带来的开销，提升性能。
+
+
+
+```
+interface I {
+    func f(): Unit
+}
+
+// 符合
+func g<T>(i: T): Unit where T <: I {
+    return i.f()
+}
+
+// 不符合
+func g(i: I): Unit {
+    return i.f()
+}
+
+```
+
+[操作符重载](#操作符重载)
+---------------
+
+
+### [G.OPR.01 尽量避免违反使用习惯的操作符重载](#gopr01--尽量避免违反使用习惯的操作符重载)
+
+
+【级别】建议
+
+
+【描述】
+
+
+重载操作符时要有充分的理由，尽量避免改变操作符的原有使用习惯，例如使用 `+` 操作符来做减法运算，避免对基础类型重载已内置支持的操作符。
+
+
+【正例】：
+
+
+
+```
+struct Point {
+    Point(let x: Int64, let y: Int64) {
+    }
+
+    operator func +(rhs: Point): Point { // 符合：为 Point 重载加法操作符
+        return Point(this.x + rhs.x, this.y + rhs.y)
+    }
+}
+
+```
+
+【反例】
+
+
+
+```
+struct Point {
+    Point(let x: Int64, let y: Int64) {
+    }
+
+    // 不符合：为 Point 重载加法操作符，但其实成员间做的是减法操作
+    operator func +(rhs: Point): Point {
+        return Point(this.x - rhs.x, this.y - rhs.y)
+    }
+}
+
+extend Int64 {
+    operator func +(right: Float64) { // 不符合：对基础类型重载已内置支持的操作符
+        // CODE
+    }
+}
+
+```
+
+### [G.OPR.02 尽量避免在 enum 类型内定义 `()` 操作符重载函数](#gopr02-尽量避免在-enum-类型内定义--操作符重载函数)
+
+
+【级别】建议
+
+
+【描述】
+
+
+enum 类型中定义 `()` 操作符重载函数，可能会和构造成员造成冲突，当两者之间发生冲突将优先调用 enum 类型的构造成员。因此建议尽量避免在 enum 类型中定义 `()` 操作符重载函数。
+
+
+【反例】
+
+
+
+```
+enum E {
+    Y | X | X(Int64)
+    operator func ()(a: Int64) {   // 不符合: enum 类型内定义 () 操作符重载函数，且与构造器有冲突
+        // CODE
+    }
+}
+
+let e = X(1) // 调用的是 enum 构造器：X(Int64).
+
+```
+
+[enum](#enum)
+-------------
+
+
+### [G.ENU.01：避免 enum 的构造器与顶层元素同名](#genu01避免-enum-的构造器与顶层元素同名)
+
+
+【级别】要求
+
+
+【描述】
+
+
+enum 构造器名字在类型所在作用域下总是自动引入，可以省略类型前缀使用。
+但是当 enum 构造器与变量名、函数名、类型名、包名冲突的时候，会优先选择变量名、函数名、类型名或包名，不容易发现冲突，也难以直观看出实际使用的版本。
+所以应尽量保证 enum 的构造器与顶层函数使用不同的名字，以避免不必要的重载所带来的困惑。
+
+
+【正例】：
+
+
+
+```
+enum TimeUnit {
+    | Year(Int64)
+    | Month(Int64, Int64)
+    | Day(Int64, Int64, Int64)
+}
+class MyYear {
+    let a: Int64
+    init(a: Int64) {
+        this.a = a
+    }
+}
+main() {
+    let y1 = Year(100)   // ok，Year(100) 调用的是 TimeUnit 中的 Year(Int64) 构造器
+    let y2 = MyYear(100) // ok，调用的是 class MyYear 的构造函数
+    return 0
+}
+
+```
+
+【反例】
+
+
+
+```
+enum TimeUnit {
+    | Year(Int64)  // 不符合：enum 构成成员与顶层的 class 类型同名
+    | Month(Int64, Int64)
+    | Day(Int64, Int64, Int64)
+}
+class Year {
+    Year(let a: Int64) {
+    }
+}
+main() {
+    let y = Year(100) // 实际使用的是 class Year 的构造函数
+    return 0
+}
+
+```
+
+【反例】
+
+
+
+```
+enum E {
+    | f1(Int64)  // 不符合：enum 构成成员与顶层的函数同名
+    | f2(Int64, Int64)
+}
+func f1(a: Int64) {}
+func f2(a: Int64, b: Int64) {}
+main() {
+    f1(1)    // 实际使用的是 func f1
+    f2(1, 2) // 实际使用的是 func f2
+    return 0
+}
+
+```
+
+### [G.ENU.02 尽量避免不同 enum 构造器之间不必要的重载](#genu02-尽量避免不同-enum-构造器之间不必要的重载)
+
+
+【级别】建议
+
+
+【描述】
+
+
+因为 enum 构造器的名字在类型所在作用域下总是自动引入的，所以不同 enum 中定义同名且对应位置参数类型存在子类型关系的构造成员后，省略类型前缀的使用方式将不再可用。enum 构造器参与函数的重载决议，当无法决议时 enum 构造器和函数均不能直接使用，此时 enum 构造器需要使用类型前缀的方式使用，函数也需要通过前缀限定的方式使用。只要有多个 enum constructor 通过类型检查，或只要有 enum constructor 和函数同时通过类型检查，就会造成无法决议。
+
+
+【正例】
+
+
+
+```
+enum TimeUnit1 {
+    | Year1(Int64)
+    | Month1(Int64, Int64)
+    | Day1(Int64, Int64, Int64)
+}
+enum TimeUnit2 {
+    | Year2(Int64)
+    | Month2(Int64, Int64)
+    | Day2(Int64, Int64, Int64)
+}
+main() {
+    let a = Year1(1) // ok：无需使用 enum 类型前缀
+    let b = Year2(2) // ok：无需使用 enum 类型前缀
+    return 0
+}
+
+```
+
+【反例】
+
+
+
+```
+enum TimeUnit1 {
+    | Year(Int64)
+    | Month(Int64, Int64)
+    | Day(Int64, Int64, Int64)
+}
+enum TimeUnit2 {
+    | Year(Int64)
+    | Month(Int64, Int64)
+    | Day(Int64, Int64, Int64)
+}
+main() {
+    let a = Year(1) // error：无法决议调用的是哪个 Year(Int64)
+    let b = TimeUnit1.Year(1) // ok：使用 enum 类型前缀
+    let c = TimeUnit2.Year(2) // ok：使用 enum 类型前缀
+    return 0
+}
+
+```
+
+【正例】
+
+
+
+```
+open class Base {}
+class Derived <: Base {}
+enum E1 {
+    | A1(Base)
+}
+enum E2 {
+    | A2(Derived)
+}
+main() {
+    let a1 = A1(Derived()) // ok：无需使用 enum 类型前缀
+    let a2 = A2(Derived()) // ok：无需使用 enum 类型前缀
+    return 0
+}
+
+```
+
+【反例】
+
+
+
+```
+open class Base {}
+class Derived <: Base {}
+enum E1 {
+    | A(Base)
+}
+enum E2 {
+    | A(Derived)
+}
+main() {
+    let a = A(Derived()) // error：无法决议调用的是哪个 enum 中的 constructor
+    let a2 = E1.A(Derived()) // ok：使用 enum 类型前缀
+    let a3 = E2.A(Derived()) // ok：使用 enum 类型前缀
+    return 0
+}
+
+```
+
+[变量](#变量)
+---------
+
+
+### [G.VAR.01 优先使用不可变变量](#gvar01-优先使用不可变变量)
+
+
+【级别】建议
+
+
+【描述】初始化后未修改的变量或属性，建议将其声明为 `let` 而不是 `var`。
+
+
+### [G.VAR.02 保持变量的作用域尽可能小](#gvar02-保持变量的作用域尽可能小)
+
+
+【级别】建议
+
+
+【描述】
+
+
+作用域是指变量在程序内可见和可引用的范围，这个范围越大引起错误的可能性越高，对它的可控制性就越差。
+
+
+例如：在变量的可见范围内新增代码，不当地修改了这个变量可能引发错误；如果可见范围过大，阅读代码的人也可能会忘记该变量应有的值，可读性差。
+
+
+所以，通常应使变量的作用域尽量小，同时把变量引用点尽量集中在一起，便于对变量施加控制。
+
+
+最小化作用域，可以增强代码的可读性和可维护性，并降低出错的可能性。
+
+
+最小化作用域的函数：
+
+
+* 尽量推迟变量定义，在变量使用时才声明并初始化
+* 把相关声明和表达式放在一起或提取成单独的子函数，使函数尽量小而集中，功能单一。
+
+
+### [G.VAR.03 避免使用全局变量](#gvar03-避免使用全局变量)
+
+
+【级别】建议
+
+
+【描述】
+
+
+使用全局变量会导致业务代码和全局变量之间产生数据耦合，并且很难跟踪数据的变化，建议避免使用全局变量。使用全局常量通常是必要的，例如定义一些全局使用的数值。
+
+
+[数据类型](#数据类型)
+-------------
+
+
+### [G.TYP.01 确保以正确的策略处理除数](#gtyp01-确保以正确的策略处理除数)
+
+
+【级别】建议
+
+
+【描述】
+
+
+在除法运算和模运算中，可能会发生除数为 0 的错误。对于整数运算，仓颉在运行时会自动检查除数，当除数为 0 时会自动抛出异常。不处理除零的情况可能会导致程序终止或拒绝服务（DoS）。捕获除零异常可能会导致性能开销较高，存在多个除法操作的时候会导致难以排查异常抛出点，因此开发者需要显式地对除数进行判断。
+
+
+【反例】
+
+
+
+```
+func f() {
+    var num1: Int64
+    var num2: Int64
+    var result: Int64
+    // Initialize num1 and num2
+    ...
+    result = num1 / num2
+}
+
+```
+
+上面的示例中，有符号操作数 num1 和 num2 的除法运算，num2 可能为 0，导致除 0 错误的发生。
+
+
+【正例】
+
+
+
+```
+func f() {
+    var num1: Int64
+    var num2: Int64
+    var result: Int64
+    // Initialize num1 and num2
+    ...
+    if (num2 == 0) {
+        //Handle error
+    } else {
+        result = num1 / num2
+    }
+}
+
+```
+
+该正确示例中，对除数进行了检查，从而杜绝了发生除 0 错误的发生。
+
+
+【反例】
+
+
+
+```
+func f() {
+    var num1: Int64
+    var num2: Int64
+    var result: Int64
+    // Initialize num1 and num2
+    ...
+    result = num1 % num2
+}
+
+```
+
+整数类型的操作数，模运算符会计算除法中的余数。上述不符合规则的代码示例，在进行模运算时，可能会因为 num2 为 0 导致除 0 错误的发生。
+
+
+【正例】
+
+
+
+```
+func f() {
+    var num1: Int64
+    var num2: Int64
+    var result: Int64
+    // Initialize num1 and num2
+    ...
+    if (num2 == 0) {
+        //Handle error
+    } else {
+        result = num1 % num2
+    }
+}
+
+```
+
+该正确示例中，对除数进行了检查，从而杜绝了除 0 错误的发生。
+
+
+### [G.TYP.02 确保正确使用整数运算溢出策略](#gtyp02-确保正确使用整数运算溢出策略)
+
+
+【级别】要求
+
+
+【描述】
+
+
+仓颉中提供三种属性宏来控制整数溢出的处理策略，@OverflowThrowing，@OverflowWrapping 和 @OverflowSaturating 分别对应抛出异常、高位截断以及饱和这三种溢出处理策略，默认情况下（即未使用宏），采取抛出异常的处理策略 。
+
+
+实际情况下需要根据业务场景的需求正确选择溢出策略。例如要在 Int64 上实现某种安全运算，使得计算结果和计算过程在数学上相等，就需要使用抛出异常的策略。
+
+
+【反例】
+
+
+
+```
+// 计算结果被高位截断
+@OverflowWrapping
+func operation(a: Int64, b: Int64): Int64 {
+    a + b // No exception will be thrown when overflow occurs
+}
+
+```
+
+该错误例子使用了高位截断的溢出策略，当传入的参数 a 和 b 太大时，可能产生高位截断的情况，导致计算结果和计算表达式 (a \+ b) 在数学上不是相等关系。
+
+
+【正例】
+
+
+
+```
+// 安全
+@OverflowThrowing
+func operation(a: Int32, b: Int32): Int32 {
+    a + b
+}
+
+func test(a: Int32, b: Int32) {
+    try {
+        let v = operation(a, b)
+    } catch (e: ArithmeticException) {
+        //Handle error
+    }
+}
+
+```
+
+该正确例子使用了抛出异常的溢出策略，当传入的参数 a 和 b 较大导致整数溢出时，operation 函数会抛出异常。
+
+
+附录 B 总结了可能造成整数溢出的数学操作符。
+
+
+[表达式](#表达式)
+-----------
+
+
+### [G.EXP.01 match 表达式同一层尽量避免不同类别的 pattern 混用](#gexp01-match-表达式同一层尽量避免不同类别的-pattern-混用)
+
+
+【级别】建议
+
+
+【描述】
+
+
+仓颉提供了丰富的模式种类，包括：常量模式、通配符模式、变量模式、tuple 模式、类型模式、enum 模式。在类型匹配的前提下，根据是否总是能匹配分为两种：refutable pattern 和 irrefutable pattern，其中 irrefutable pattern 总是可以和它所要匹配的值匹配成功。
+
+
+对 pattern 的使用建议如下：
+
+
+* match 表达式的不同 case 的 pattern 之间尽量保持互斥，避免依赖匹配顺序；
+* match 不能互斥时，由于匹配的顺序是从前往后，要避免前面的 case 遮盖后面的 case，比如 irrefutable pattern 的 case 需要放到所有 refutable pattern 的 case 之后；
+* match 表达式同一层中尽量避免混用不同判断维度的模式：
+	+ 类型模式和其它判断的维度也不一样，比如常量模式是根据值来判断，类型模式是判断类型，混用后对 exhaustive 的可读性会有影响；
+	+ tuple 模式、enum 模式属于解构，可以和常量模式、变量模式结合使用。
+
+
+【反例】
+
+
+
+```
+enum TimeUnit {
+    | Year(Int64)
+    | Month(Int64, Int64)
+    | Day(Int64, Int64, Int64)
+    | Hour(Int64, Int64, Int64, Int64)
+}
+
+let oneYear = Year(1)
+let howManyHours = match (oneYear) { // 不符合：enum 模式、类型模式混用
+    case Month(y, m) => ...
+    case _: TimeUnit => ...
+    case Day(y, m, d) => ...
+    case Hour(y, m, d, h) => ...
+}
+
+```
+
+【正例】：
+
+
+
+```
+enum TimeUnit {
+    | Year(Int64)
+    | Month(Int64, Int64)
+    | Day(Int64, Int64, Int64)
+    | Hour(Int64, Int64, Int64, Int64)
+}
+
+let oneYear = Year(1)
+let howManyHours = match (oneYear) {
+    case Year(y) => //...
+    case Month(y, m) => //...
+    case Day(y, m, d) => //...
+    case Hour(y, m, d, h) => //...
+}
+
+```
+
+### [G.EXP.02 不要期望浮点运算得到精确的值](#gexp02-不要期望浮点运算得到精确的值)
+
+
+【级别】建议
+
+
+【描述】
+
+
+因为存储二进制浮点的 bit 位是有限的，所以二进制浮点数的表示范围也是有限的，并且无法精确地表示所有实数。因此，浮点数计算结果也不是精确值，除了可以表示为 2 的幂次以及整数数乘的浮点数可以准确表示外，其余数的值都是近似值。
+
+
+实际编程中，要结合场景需求，尤其是对精度的要求，合理选择浮点数操作。
+
+
+例如，对于浮点值比较，如果对比较精度有要求，通常不建议直接用 !\= 或 \=\= 比较，而是要考虑对精度的要求。
+
+
+【正例】
+
+
+
+```
+import std.math.*
+
+func isEqual(a: Float64, b: Float64): Bool {
+    return abs(a - b) <= 1e-6
+}
+
+func compare(x: Float64) {
+    if (isEqual(x, 3.14)) {
+        // CODE
+    } else {
+        // CODE
+    }
+}
+
+```
+
+【反例】
+
+
+
+```
+func compare(x: Float64) {
+    if (x == 3.14) {
+        // CODE
+    } else {
+        // CODE
+    }
+}
+
+```
+
+### [G.EXP.03 \&\& 、 \|\|、? 和 ?? 操作符的右侧操作数不要修改程序状态](#gexp03----和--操作符的右侧操作数不要修改程序状态)
+
+
+【级别】要求
+
+
+逻辑与（`&&`）、逻辑或（`||`）、问号操作符（`?`）和 coalescing（`??`）表达式中的右操作数是否被求值，取决于左操作数的求值结果，当左操作数的求值结果可以得到整个表达式的结果时，不会再计算右操作数的结果。如果右操作数可能修改程序状态，则不能确定该修改是否发生，因此，规定逻辑与、逻辑或、问号操作符和 coalescing 操作符的右操作数中不要修改程序状态。
+
+
+这里修改程序状态主要指修改变量及其成员（如修改全局变量、取放锁）、进行 IO 操作（如读写文件，收发网络包）等。
+
+
+【反例】
+
+
+
+```
+var count: Int64 = 0
+
+func add(x: Int64): Int64 {
+    count += x // 修改了全局变量
+    return count
+}
+
+main(): Int64 {
+    let isOk = false
+    let num = 5
+    if (isOk && (add(num) != 0)) {  // 不符合： && 的右操作数中修改了程序状态
+        return 0
+    } else {
+        return 1
+    }
+}
+
+```
+
+【正例】：
+
+
+
+```
+var count: Int64 = 0
+
+func add(x: Int64): Int64 {
+    count += x // 修改了全局变量
+    return count
+}
+
+main(): Int64 {
+    let isOk = false
+    let num = 5
+    if (isOk) {  // 使用显式的条件判断来区分操作是否被执行
+        if (add(num) != 0) {
+            return 0
+        } else {
+            return 1
+        }
+    } else {
+        return 1
+    }
+}
+
+```
+
+### [G.EXP.04 尽量避免副作用发生依赖于操作符的求值顺序](#gexp04-尽量避免副作用发生依赖于操作符的求值顺序)
+
+
+【级别】建议
+
+
+【描述】
+
+
+表达式的求值顺序会影响副作用发生的顺序，应尽量避免副作用发生依赖于操作符的求值顺序。
+
+
+通常操作符或表达式的求值顺序是先左后右，但以下情形求值顺序会比较特殊，尤其要避免副作用发生依赖于表达式的求值顺序：
+
+
+* 对于赋值表达式，总是先计算右边的表达式，再计算 \= 左边的表达式，最后进行赋值；
+* 复合赋值表达式 `a op= b` 不能简单看做赋值表达式与其它二元操作符的组合 `a = a op b`，`a op= b` 中的 `a` 只会被求值一次，而 `a = a op b` 中的 `a` 会被求值两次；
+* `try {e1} catch (catchPattern) {e2} finally {e3}` 表达式的求值顺序，依赖 `e1`，`e2`，`e3` 是否抛出异常；
+* 函数调用时，参数求值顺序是按照定义时顺序从左到右，而非按照调用时的实参顺序；
+* 如果函数调用的某个参数是 Nothing 类型，则该参数后面的参数不会被求值，函数调用本身也不会被执行；
+
+
+【反例】
+
+
+如下代码示例中，main 中的复合赋值表达式的左操作数调用了一个有副作用的函数：
+
+
+
+```
+class C {
+    var count = 0
+    var num = 0
+}
+
+var c = C()
+
+func getC(): C {
+    c.count += 1   // 副作用
+    return c
+}
+
+main(): Int64 {
+    let num = 5
+    getC().count += num   // 不符合：副作用依赖了表达式的求值顺序和求值次数。
+    return 1
+}
+
+```
+
+### [G.EXP.05 用括号明确表达式的操作顺序，避免过分依赖默认优先级](#gexp05-用括号明确表达式的操作顺序避免过分依赖默认优先级)
+
+
+【级别】建议
+
+
+【描述】
+
+
+当表达式包含不常用、优先级易混淆的操作符时，建议使用括号明确表达式的操作顺序，防止因默认的优先级与实现意图不符而导致程序出错。
+
+
+然而过多的括号也会分散代码降低其可读性，下面是对如何使用括号的建议：
+
+
+* 一元操作符，不需要使用括号
+
+
+
+```
+func test(a: Int64, b: Bool, c: Bool) {
+    let foo = -a   // 一元操作符，不需要括号
+    if (b || !c) {} // 一元操作符，不需要括号
+}
+
+```
+* 涉及位操作，推荐使用括号
+* 如果不涉及多种操作符，不需要括号
+
+
+涉及多种操作符混合使用并且优先级容易混淆的场景，建议使用括号明确表达式操作顺序。
+
+
+
+```
+func test() {
+    let (a, b, c) = (1, 2, 3)
+    let (p, q, r) = (true, false, true)
+
+    let foo = a + b + c   // 操作符相同，不需要括号
+    if (p && q && r) {} // 操作符相同，不需要括号
+    let bar = 1 << (2 + 3)   // 操作符不同，优先级易混淆，需要括号
+}
+
+```
+
+
+【正例】：
+
+
+
+```
+main(): Int64 {
+    var a = 0
+    var b = 0
+    var c = 0
+    a = 1 << (2 + 3)
+    a = (1 << 2) + 3
+    c = (a & 0xFF) + b
+    if ((a & b) == 0) {
+        return 0
+    } else {
+        return 1
+    }
+}
+
+```
+
+【反例】
+
+
+
+```
+main(): Int64 {
+    var a = 0
+    var b = 0
+    var c = 0
+    a = 1 << 2 + 3    // 涉及位操作符，需要括号
+    c = a & 0xFF + b  // 涉及位操作符，需要括号
+    if (a & b == 0) { // 涉及位操作符，需要括号
+        return 0
+    } else {
+        return 1
+    }
+}
+
+```
+
+对于常用、不易混淆优先级的表达式，不需要强制增加额外的括号。例如：
+
+
+
+```
+main(): Int64 {
+    var a = 0
+    var b = 0
+    var c = 0
+    var d = a + b + c     // 操作符相同，可以不加括号
+    var e = (a + b, c)    // 逗号两边的表达式，不需要括号
+    if (a > b && c > d) { // 逻辑表达式，根据子表达式的复杂情况选择是否加括号
+        return 0
+    } else {
+        return 1
+    }
+}
+
+```
+
+### [G.EXP.06 Bool 类型比较应避免多余的 \=\= 或 !\=](#gexp06-bool-类型比较应避免多余的--或-)
+
+
+【级别】建议
+
+
+【描述】
+
+
+在 if 表达式、while、do while 表达式等使用到 Bool 类型表达式的位置，对于 Bool 类型的判断，应该避免多余的 \=\= 或 !\=。
+
+
+【正例】：
+
+
+
+```
+func isZero(x: Int64):Bool {
+    return x == 0
+}
+
+main(): Int64 {
+    var a = true
+    var b = isZero(1)
+    if (a && !b) {
+        return 1
+    } else {
+        return 0
+    }
+}
+
+```
+
+【反例】
+
+
+
+```
+func isZero(x: Int64):Bool {
+    return (x == 0) == true
+}
+
+main(): Int64 {
+    var a = true
+    var b = isZero(1)
+    if (a == true && b != true) {
+        return 1
+    } else {
+        return 0
+    }
+}
+
+```
+
+### [G.EXP.07 比较两个表达式时，左侧倾向于变化，右侧倾向于不变](#gexp07-比较两个表达式时左侧倾向于变化右侧倾向于不变)
+
+
+【级别】建议
+
+
+【描述】
+
+
+当可变变量与常量比较时，如果常量放左侧，如 `if (MAX == v)` 不符合阅读习惯，而 `if (MAX > v)` 更是难于理解。
+
+
+应当按人的正常阅读、表达习惯，将常量放右侧。
+
+
+【反例】
+
+
+
+```
+import std.collection.ArrayList
+
+const MAX_LEN = 99999
+
+func maxIndex(arr: ArrayList<Int>) {
+    let len = arr.size
+    // 不符合，常量在左，let 修饰的变量在右
+    if (MAX_LEN < len) {
+        throw Exception("too long")
+    } else {
+        var i = 0
+        var maxI = 0
+        // 不符合，let 修饰的变量在左，var 修饰的变量在右
+        while (len > i) {
+            if (arr[i] > arr[maxI]) {
+                maxI = i
+            }
+            i++
+        }
+        return maxI
+    }
+}
+
+```
+
+【正例】：
+
+
+
+```
+import std.collection.ArrayList
+
+const MAX_LEN = 99999
+
+func maxIndex(arr: ArrayList<Int>) {
+    let len = arr.size
+    if (len > MAX_LEN) {
+        throw Exception("too long")
+    } else {
+        var i = 0
+        var maxI = 0
+        while (i < len) {
+            if (arr[i] > arr[maxI]) {
+                maxI = i
+            }
+            i++
+        }
+        return maxI
+    }
+}
+
+```
+
+也有例外情况，如使用 `if (MIN < a && a < MAX)` 用来描述区间时，前半段表达式中不可变变量在左侧也是允许的。
+
+
+[异常与错误处理](#异常与错误处理)
+-------------------
+
+
+### [G.ERR.01 恰当地使用异常或错误处理机制](#gerr01-恰当地使用异常或错误处理机制)
+
+
+【级别】建议
+
+
+【描述】
+
+
+仓颉提供了 Exception 用来处理异常或错误：Exception 给函数提供了一条异常返回路径，用于表示函数无法正常执行完成，或无法正常返回结果的情形。
+
+
+对于异常或错误处理机制的建议如下：
+
+
+1. Exception 应避免不加任何处理就丢掉错误信息；
+2. 对于会抛 Exception 的 API，须在注释中说明可能出现的 Exception 类型；
+
+
+例外：
+
+
+1. 系统调用、FFI 可以使用返回错误码的形式，与原 API 保持一致。
+
+
+### [G.ERR.02 防止通过异常抛出的内容泄露敏感信息](#gerr02-防止通过异常抛出的内容泄露敏感信息)
+
+
+【级别】要求
+
+
+【描述】
+
+
+如果在传递异常的时候未对其中的敏感信息进行过滤，常常会导致信息泄露，而这可能帮助攻击者尝试发起进一步的攻击。攻击者可以通过构造恶意的输入参数来发掘应用的内部结构和机制。不管是异常中的文本消息，还是异常本身的类型都可能泄露敏感信息。因此，当异常被传递到信任边界以外时，必须同时对敏感的异常消息和敏感的异常类型进行过滤。
+
+
+【反例】
+
+
+
+```
+func exceptionExample(path: String): Unit {
+    var file: File
+    if (!File.exists(path)) {
+        // 异常消息和类型泄露敏感信息
+        throw IOException("File does not exist")
+    }
+    file = File(path, Append)
+    // CODE
+}
+
+```
+
+当打开的源文件不存在时，程序会抛出 IOException 异常，并提示 “File does not exist”。这使得攻击者可以不断传入伪造的路径名称来重现出底层文件系统结构。
+
+
+【反例】
+
+
+
+```
+func exceptionExample(path: String): Unit {
+    var file: File
+    if (!File.exists(path)) {
+        // 异常净化
+        throw IOException()
+    }
+    file = File(path, Append)
+    // CODE
+}
+
+```
+
+此例中虽然报错信息并未透露错误原因，但是对于不同的错误原因仍会抛出不同类型的异常。攻击者可以根据程序的行为推断出有关文件系统的敏感信息。未对用户输入做限制，使得系统面临暴力攻击的风险，攻击者可以多次传入所有可能的文件名进行查询来发现有效文件。如果传入一个文件名后程序返回一个 IOException 异常，则表明该文件不存在，否则说明该文件是存在的。
+
+
+【正例】：
+
+
+
+```
+func exceptionExample(path: String): Unit {
+    var file: File
+    if (!File.exists(path)) {
+        // 安全策略
+        println("Invalide file")
+        return
+    }
+    file = File(path, Append)
+    // CODE
+}
+
+```
+
+【正例】：
+
+
+
+```
+func exceptionExample(index: Int32): Unit {
+    var path: String
+    var file: File
+    // 限制输入
+    match (index) {
+        case 1 => path = "/home/test1"
+        case 2 => path = "/home/test2"
+        case _ => return
+    }
+    file = File(path, Append)
+
+    // CODE
+}
+
+```
+
+这个正确示例限制用户只能打开 /home/test1 与 /home/test2。同时，它也会过滤在 catch 块中捕获的异常中的敏感信息。
+
+
+**例外场景：**
+
+
+对出于问题定位目的，可将敏感异常信息记录到日志中，但必须做好日志的访问控制，防止日志被任意访问，导致敏感信息泄露给非授权用户。
+
+
+### [G.ERR.03 避免对 Option 类型使用 getOrThrow 函数](#gerr03-避免对-option-类型使用-getorthrow-函数)
+
+
+【级别】建议
+
+
+【描述】
+
+
+仓颉使用 Option 类型来避免空指针问题，若对 Option 类型使用 getOrThrow 来获取其内容，容易导致忽略异常的处理，造成等同于空指针的效果。因此应尽量避免对 Option 类型使用 getOrThrow 函数。
+
+
+【反例】
+
+
+
+```
+func getOne(dict: HashMap<String, Int64>, name: String): Int64 {
+    return dict.get(name).getOrThrow()
+}
+
+```
+
+该错误示例没有考虑传入的名字可能不存在的情况，只使用了 getOrThrow 而没有处理异常。这是一种危险的编码风格，并不推荐。
+
+
+【正例】
+
+
+
+```
+const DEFAULT_VALUE = 0
+
+func getOne(dict: HashMap<String, Int64>, name: String): Int64 {
+    return dict.get(name) ?? DEFAULT_VALUE
+}
+
+```
+
+该正确示例中，在 Option 中值不存在的情况下提供了默认值，而不是使用 getOrThrow。
+
+
+**例外场景**：
+
+
+对于调用开源三方件，三方件中通过 getOrThrow 抛出 NoneValueException 异常时，可以捕获 NoneValueException，并对该异常进行处理。
+
+
+[包和模块化](#包和模块化)
+---------------
+
+
+### [G.PKG.01 避免在 import 声明中使用通配符 `*`](#gpkg01-避免在-import-声明中使用通配符-)
+
+
+【级别】建议
+
+
+【描述】
+
+
+使用 `import xxx.*` 会导致如下问题：
+
+
+* 代码可读性问题：很难从代码中清楚地看到当前包依赖其它包的哪些实体 (类型，变量或函数等)，也很难直接看出来一些实体是从哪个包来的；
+* 形成意外的重载。
+
+
+【反例】：
+
+
+
+```
+// test1.cj
+package test1
+
+public open class Base {
+    ...
+}
+
+public class Sub <: Base {
+    ...
+}
+
+public func f(a: Base) {
+    ...
+}
+
+//file test2.cj
+package test2
+import test1.*
+
+class Basa {
+    var m = Sub()
+}
+
+func f(a: Basa) {
+    ...
+}
+
+main() {
+    f(Base()) // Miswriting Basa as Base, but no compiler error.
+}
+
+```
+
+【正例】
+
+
+
+```
+// test1.cj
+package test1
+
+public open class Base {
+    ...
+}
+
+public class Sub <: Base {
+    ...
+}
+
+public func f(a: Base) {
+    ...
+}
+
+//file test2.cj
+package test2
+import test1.Sub
+
+class Basa {
+    var m = Sub()
+}
+
+func f(a: Basa) {
+    ...
+}
+
+main() {
+    f(Base()) // Error，误将 Basa 写成了 Base，会编译报错
+}
+
+```
+
+[线程同步](#线程同步)
+-------------
+
+
+### [G.CON.01 禁止将系统内部使用的锁对象暴露给不可信代码](#gcon01-禁止将系统内部使用的锁对象暴露给不可信代码)
+
+
+【级别】要求
+
+
+【描述】
+
+
+在仓颉中可以通过 synchronized 关键字和一个 ReentrantMutex 对象对所修饰的代码块进行保护，使得同一时间只允许一个线程执行里面的代码。攻击者可以通过获取该 ReentrantMutex 对象来触发条件竞争与死锁，进而引起拒绝服务（DoS）。
+
+
+防御这个漏洞一种方法就是使用私有锁对象。
+
+
+【反例】
+
+
+
+```
+import std.sync.*
+import std.time.*
+
+class SomeObject {
+    public let mtx: ReentrantMutex = ReentrantMutex()
+    ...
+    public func put(x: Object) {
+        synchronized(mtx) {
+            ...
+        }
+    }
+}
+//Trusted code
+var so = SomeObject()
+...
+//Untrusted code
+func untrusted() {
+    synchronized(so.mtx) {
+        while (true) {
+            sleep(100 * Duration.nanosecond)
+        }
+    }
+}
+
+```
+
+使用 public 修饰锁对象，攻击者可以直接无限持有 mtx 锁，使得其它调用 put 函数的线程被阻塞。
+
+
+【正例】
+
+
+
+```
+import std.sync.*
+
+class SomeObject {
+    private let mtx: ReentrantMutex = ReentrantMutex()
+    // CODE
+    public func put(x: Object) {
+        synchronized(mtx) {
+            // CODE
+        }
+    }
+}
+
+```
+
+将锁对象设置为 private 类型，攻击者无法无限持有锁。
+
+
+**例外场景**：
+
+
+包私有的类可以不受该规则的约束，因为他们无法被包外的非受信代码直接访问。
+
+
+对于非受信代码无法获取执行同步操作的对象的场景下，可以不受该规则的约束。
+
+
+### [P.01 使用相同的顺序请求锁，避免死锁](#p01-使用相同的顺序请求锁避免死锁)
+
+
+【级别】要求
+
+
+【描述】
+
+
+为避免多线程同时操作共享变量导致冲突，必须对共享变量进行保护，防止被并行地修改和访问。进行同步操作可以使用 ReentrantMutex 对象。当两个或多个线程以不同的顺序请求锁时，就可能会发生死锁。仓颉自身不能防止死锁也不能对死锁进行检测。所以程序必须以相同的顺序来请求锁，避免产生死锁。
+
+
+【反例】
+
+
+
+```
+import std.sync.*
+
+class BankAccount {
+    private var balanceAmount: Float64 = 0.0
+    public let mtx: ReentrantMutex = ReentrantMutex()
+    // CODE
+    public func depositAmount(ba: BankAccount, amount: Float64) {
+        synchronized(mtx) {
+            synchronized(ba.mtx) {
+                if (balanceAmount> amount) {
+                    ba.balanceAmount += amount
+                    balanceAmount -= amount
+                }
+            }
+        }
+    }
+}
+
+```
+
+上面的错误示例会存在死锁的情况。当 bankA / bankB 两个银行账户在不同线程同步互相转账时，就可能导致死锁的问题。
+
+
+【正例】
+
+
+
+```
+import std.sync.*
+
+class BankAccount {
+    private var balanceAmount: Float64 = 0.0
+    public let mtx: ReentrantMutex = ReentrantMutex()
+    private var id: Int32 = 0 // Unique for each BankAccount
+    // CODE
+    public func depositAmount(ba: BankAccount, amount: Float64) {
+        var former: ReentrantMutex
+        var latter: ReentrantMutex
+        if (id > ba.id) {
+            former = ba.mtx
+            latter = mtx
+        } else {
+            former = mtx
+            latter = ba.mtx
+        }
+        synchronized(former) {
+            synchronized(latter) {
+                if (balanceAmount > amount) {
+                    ba.balanceAmount += amount
+                    balanceAmount -= amount
+                }
+            }
+        }
+    }
+}
+
+```
+
+上述正确示例使用了一个全局唯一的 id 来保证不同线程使用相同的顺序来申请和释放锁对象，因此不会导致死锁问题。
+
+
+### [G.CON.02 在异常可能出现的情况下，保证释放已持有的锁](#gcon02-在异常可能出现的情况下保证释放已持有的锁)
+
+
+【级别】要求
+
+
+【描述】
+
+
+一个线程中没有正确释放持有的锁会使其他线程无法获取该锁对象，导致阻塞。在发生异常时，要确保程序正确释放当前持有的锁。注：在发生异常时，通过 synchronized 进行同步的代码块的锁会被自动释放，但是通过 mtx.lock() 获得的锁不会被自动释放，需要开发者手动释放。
+
+
+【反例】
+
+
+
+```
+import std.sync.*
+
+class Foo {
+    private let mtx: ReentrantMutex = ReentrantMutex()
+
+    public func doSomething(a: Int64, b: Int64) {
+        var c: Int64
+        try {
+            mtx.lock()
+            // CODE
+            c = a / b
+            mtx.unlock()
+        } catch (e: ArithmeticException) {
+            // Handle exception
+            // CODE
+        } finally {
+            // CODE
+        }
+    }
+}
+
+```
+
+上述错误示例中，使用 ReentrantMutex 锁，发生算数运算错误时，catch 及 finally 代码块中没有释放锁操作，导致锁没有释放。
+
+
+【正例】
+
+
+
+```
+import std.sync.*
+
+class Foo {
+    private let mtx: ReentrantMutex = ReentrantMutex()
+
+    public func doSomething(a: Int64, b: Int64) {
+        var c: Int64
+        try {
+            mtx.lock()
+            // CODE
+            c = a / b
+        } catch (e: ArithmeticException) {
+            // Handle exception
+            // CODE
+        } finally {
+            mtx.unlock()
+            // CODE
+        }
+    }
+}
+
+```
+
+上述正确示例中，成功执行锁定操作后，将可能抛出异常的操作封装在 try 代码块中。锁在执行可能发生异常的代码块前获取，可保证在执行 finally 代码时正确持有锁。在 finally 代码块中调用 mtx.unlock()，可以保证不管是否发生异常都可以释放锁。
+
+
+### [G.CON.03 禁止使用非线程安全的函数来覆写线程安全的函数](#gcon03-禁止使用非线程安全的函数来覆写线程安全的函数)
+
+
+【级别】要求
+
+
+【描述】
+
+
+使用非线程安全的函数覆写基类的线程安全函数，可能会导致不恰当的同步。比如，子类将基类的线程安全的函数覆写为非安全函数，这样就违背了覆写同步函数的要求。这样很容易导致难以定位的问题的产生。
+
+
+被设计为可继承的类，这些类对应的锁策略必须要详细记录说明。方便子类继承时，沿用正确的锁策略。
+
+
+【反例】
+
+
+
+```
+import std.sync.*
+
+open class Base {
+    private let baseMtx: ReentrantMutex = ReentrantMutex()
+    public open func doSomething() {
+        synchronized(baseMtx) {
+            // CODE
+        }
+    }
+}
+
+class Derived <: Base {
+    public override func doSomething() {
+         // CODE
+    }
+}
+
+```
+
+上述错误示例中，子类 Derived 覆写了基类 Base 的同步函数 doSomething() 为非线程同步函数。Base 类的 doSomething() 函数可被多线程正确使用，但 Derived 类不可以。因为接受 Base 实例的线程同时也可以接受其子类，所以可能会导致难以诊断的程序错误。
+
+
+【正例】
+
+
+
+```
+import std.sync.*
+
+open class Base {
+    private let baseMtx: ReentrantMutex = ReentrantMutex()
+    public open func doSomething() {
+        synchronized(baseMtx) {
+            // CODE
+        }
+    }
+}
+
+class Derived <: Base {
+    private let mtx: ReentrantMutex = ReentrantMutex()
+    public override func doSomething() {
+         synchronized(mtx) {
+             // CODE
+         }
+    }
+}
+
+```
+
+上述正确示例中，通过使用一个私有的锁对象来同步的函数覆写 Base 类中的同步函数 doSomething()，确保了 Derived 类是线程安全的。
+
+
+另外，上面示例中，子类与基类的 doSomething() 函数使用的是不同的锁，实际编码过程中，要考虑是否会产生影响。在设计过程中，要尽量避免类似的继承导致的同步问题。
+
+
+### [P.02 避免数据竞争（data race)](#p02-避免数据竞争data-race)
+
+
+【级别】要求
+
+
+【描述】
+
+
+仓颉语言中，内存模型中的每个操作都采用 happens\-before 关系，来规定并发执行中，读写操作允许读到什么值，不允许读到什么值。两个线程分别对同一个变量进行访问操作，其中至少一个操作是写操作，且这两个操作之间没有 happens\-before 关系，就会产生 data race。正确同步的（correctly synchronized）执行是指没有 data race 的执行。仓颉语言内存模型中规定，如果存在 data race，那么行为是未定义的，因此要求必须避免 data race。在仓颉中通常采用锁机制完成对共享资源的同步，并且同一个共享资源应该使用同一个锁来进行保护。注：happens\-before 关系的正式定义见仓颉语言规范定义。
+
+
+对 “同一个数据” 的定义：
+
+
+1. 对同一个 primitive type、enum、array 类型的变量或者 struct/class 类型的同一个 field 的访问，都算作同一个数据。
+2. 对 struct/class 类型的不同 field 的访问，算作不同数据 。
+
+
+【反例】
+
+
+
+```
+import std.sync.*
+import std.time.*
+
+var res: Int64 = 0
+
+main(): Int64 {
+    var i: Int64 = 0
+    while (i < 100) {
+        i++
+        spawn {
+            res = res + 1
+        }
+    }
+    sleep(Duration.second)
+    print(res.toString())
+    return 0
+}
+
+```
+
+上述错误示例中，多个线程同时对全局变量 res 进行了读写操作，导致 data race, 最终 res 的值为一个非预期值。
+
+
+【正例】
+
+
+
+```
+import std.sync.*
+import std.time.*
+
+var res: Int64 = 0
+
+main(): Int64 {
+    var i: Int64 = 0
+    let mtx = ReentrantMutex()
+    while (i < 100) {
+        i++
+        spawn {
+            synchronized (mtx) {
+                res = res + 1
+            }
+        }
+    }
+    sleep(Duration.second)
+    print(res.toString())
+    return 0
+}
+
+```
+
+上述正确示例中，通过使用 synchronized 来保护对全局变量 res 的修改。
+
+
+**一般来说，如果使用锁，那么读和写都要加锁**，而不是写线程需要加锁，而读的线程可以不加锁。
+
+
+【反例】
+
+
+
+```
+import std.sync.*
+import std.time.*
+
+var a: Int64 = 0
+var b: Int64 = 0
+
+main(): Int64 {
+    let mtx = ReentrantMutex()
+    spawn {
+        mtx.lock()
+        a = 1
+        b = 1
+        mtx.unlock()
+    }
+    spawn {
+        while (true) {
+            if (a == 0) {
+                continue
+            }
+            if (b != 1) {
+                print("Fail\n")
+            } else {
+                print("Success\n")
+            }
+            break
+        }
+    }
+    sleep(Duration.second)
+    return 0
+}
+
+```
+
+上述错误示例中，对于 a、b 的写入是在锁的保护下进行的，但是没有在锁的保护中进行读取，可能导致读取到的值不符合预期。
+
+
+【正例】
+
+
+
+```
+import std.sync.*
+import std.time.*
+
+var a: Int64 = 0
+var b: Int64 = 0
+
+main(): Int64 {
+    let mtx = ReentrantMutex()
+    spawn {
+        mtx.lock()
+        a = 1
+        b = 1
+        mtx.unlock()
+    }
+    spawn {
+        while (true) {
+            mtx.lock()
+            if (a == 0) {
+                mtx.unlock()
+                continue
+            }
+            if (b != 1) {
+                print("Fail\n")
+            } else {
+                print("Success\n")
+            }
+            mtx.unlock()
+            break
+        }
+    }
+    sleep(Duration.second)
+    return 0
+}
+
+```
+
+上述正确示例中，对于 a、b 的写入和读取均是在锁的保护下进行的，结果符合预期。
+
+
+### [G.CON.04 避免在产生阻塞操作中持有锁](#gcon04-避免在产生阻塞操作中持有锁)
+
+
+【级别】建议
+
+
+【描述】
+
+
+在耗时严重或阻塞的操作中持有锁，可能会严重降低系统的性能。另外，无限期的阻塞相互关联的线程，会导致死锁。阻塞操作一般包括：网络、文件和控制台 I/O 等，将一个线程延时同样会形成阻塞操作。所以程序持有锁时应避免执行这些操作。
+
+
+【反例】
+
+
+
+```
+import std.sync.*
+import std.time.*
+
+let mtx: MultiConditionMonitor = MultiConditionMonitor()
+let c: ConditionID = mtx.newCondition()
+
+func doSomething(time: Duration) {
+    synchronized(mtx) {
+        sleep(time)
+    }
+}
+
+```
+
+上述错误示例中，doSomething() 函数是同步的，当线程挂起时，其他线程也不能使用该同步函数。
+
+
+【正例】
+
+
+
+```
+import std.sync.*
+import std.time.*
+
+let mtx: MultiConditionMonitor = MultiConditionMonitor()
+let c: ConditionID = synchronized(mtx) {
+    mtx.newCondition()
+}
+
+func doSomething(timeout: Duration) {
+    synchronized(mtx) {
+        while (/* waiting for something */) {
+            mtx.wait(c, timeout: timeout) // Immediately releases the current mutex
+        }
+    }
+}
+
+```
+
+上述正确示例中，使用 mtx 对象的 wait 函数设置一个 timeout 期限并阻塞当前线程，然后将 mtx 对象锁释放。在 timeout 期限到达或者该线程被 mtx 对象的 notify() 或 notifyAll() 函数唤起时，该线程会重新尝试获取 mtx 锁。
+
+
+【反例】
+
+
+
+```
+import std.sync.*
+// Class Page is defined separately.
+// It stores and returns the Page name via getName()
+let pageBuff: Array<Page> = Array<Page>(MAX_PAGE_SIZE) { i => Page() }
+let mtx = ReentrantMutex()
+
+public func sendPage(socket: Socket, pageName: String): Bool {
+    synchronized(mtx) {
+        var write_bytes: Option<Int64>
+        var targetPage = None<Page>
+        // Send the Page to the server
+        for (p in pageBuff) {
+            match (p.getName().compareTo(pageName)) {
+                case EQUAL => targetPage = Some<Page>(p)
+                case _ => ...
+            }
+        }
+        // Requested Page does not exist
+        match (targetPage) {
+            case None => return false
+            case _ => ...
+        }
+        // Send the Page to the client
+        // (does not require any synchronization)
+        write_bytes = socket.write(targetPage.getOrThrow().getBuff())
+        ...
+    }
+    return true
+}
+
+
+```
+
+上述错误示例中，sendPage() 函数会从服务器发送一个 page 对象的数据到客户端。当多个线程并发访问时，同步函数会保护 pageBuf 队列，而 writeObject() 操作会导致延时，在高延时的网络或当网络条件本身存在丢包时，该锁会被长期无意义地持有。
+
+
+【正例】
+
+
+
+```
+import std.sync.*
+// Class Page is defined separately.
+// It stores and returns the Page name via getName()
+// let pageBuff: Array<Page> = Array<Page>(MAX_PAGE_SIZE) { i => Page() }
+let pageBuff = ArrayList<Page>()
+let mtx = ReentrantMutex()
+
+public func sendPage(socket: Socket, pageName: String): Bool {
+    let targetPage = getPage(pageName)
+    match (targetPage) {
+        case None => return false
+        case _ => ...
+    }
+    // Send the Page to the client
+    // (does not require any synchronization)
+    deliverPage(socket, targetPage.getOrThrow())
+    ...
+    return true
+}
+
+// Requires synchronization
+private func getPage(pageName: String): Option<Page> {
+    synchronized(mtx) {
+        var targetPage = None<Page>
+        for (p in pageBuff) {
+            match (p.getName().compareTo(pageName)) {
+                case EQUAL => targetPage = Some<Page>(p)
+                case _ => ...
+            }
+        }
+        return targetPage
+    }
+}
+
+private func deliverPage(socket: Socket, targetPage: Page) {
+    var write_bytes: Option<Int64>
+    // Send the Page to the client
+    // (does not require any synchronization)
+    write_bytes = socket.write(targetPage.getBuff())
+    ...
+}
+
+```
+
+上述正确示例中，将原来的 sendPage() 分为三个具体步骤执行，不同步的 sendPage() 函数调用同步的 getPage() 函数来在 pageBuff 队列中获得请求的 page。在取得 page 后，会调用不同步的 deliverPage() 函数类提交 page 到客户端。
+
+
+**例外场景**：
+
+
+向调用者提供正确终止阻塞操作的类可不遵守该要求。
+
+
+### [G.CON.05 避免使用不正确形式的双重锁定检查](#gcon05-避免使用不正确形式的双重锁定检查)
+
+
+【级别】建议
+
+
+【描述】
+
+
+双重锁定（double\-checked locking idiom）是一种软件设计模式，通常用于延迟初始化单例。主要通过在进行获取锁之前先检查单例对象是否创建（第一次检查），在获取锁以后，再次检查对象是否创建（第二次检查），以此减少并发获取锁的开销。
+
+
+但是取决于具体实现的内存模型，不正确的双重锁定检查使用可能会导致一个未初始化或部分初始化的对象对其它线程可见。因此只有在能为实例的完整构建建立正确的 happens\-before 关系的情况下，才可以使用双重锁定检查。
+
+
+【反例】
+
+
+
+```
+import std.sync.*
+
+class Foo {
+    private var helper: Option<Helper> = None<Helper>
+    private let mtx: ReentrantMutex = ReentrantMutex()
+
+    public func getHelper(): Helper {
+        match (helper) {
+            case None =>
+                synchronized(mtx) {
+                    match (helper) {
+                        case None =>
+                            let temp = Helper()
+                            helper = Some<Helper>(temp)
+                            return temp
+                        case Some(h) => return h
+                    }
+                }
+            case Some(h) => return h
+        }
+    }
+}
+
+```
+
+上述错误示例中，使用了双重锁定检查的错误形式。对 Helper 对象进行初始化的写入和对 Helper 数据成员的写入，可能不按次序进行或完成。因此，一个调用 getHelper() 的线程可能会得到指向一个 helper 对象的非空引用，但该对象的数据成员为默认值而不是构造函数中设置的值。
+
+
+【正例】
+
+
+
+```
+import std.sync.*
+
+class Foo {
+    private var helper = AtomicOptionReference<Helper>()
+    private let mtx: ReentrantMutex = ReentrantMutex()
+
+    public func getHelper(): Helper {
+        match (helper.load()) {
+            case None =>
+                synchronized(mtx) {
+                    match (helper.load()) {
+                        case None =>
+                            let temp = Helper()
+                            helper = AtomicOptionReference<Helper>(temp)
+                            return temp
+                        case Some(h) => return h
+                    }
+                }
+            case Some(h) => return h
+        }
+    }
+}
+
+```
+
+上述例子将使用 AtomicReference 类对 Helper 的使用进行了封装，该类型会禁用编译优化，使得对 helper 对象的操作满足 happens\-before 关系。
+
+
+【正例】
+
+
+
+```
+class Foo {
+    private static let helper: Helper = Helper()
+
+    public static func getHelper(): Helper {
+        return helper
+    }
+}
+
+```
+
+上述正确示例中，在对静态变量的声明中完成了 helper 字段的初始化。但是该实例没有使用延迟初始化。
+
+
+[数据校验](#数据校验)
+-------------
+
+
+### [G.CHK.01 跨信任边界传递的不可信数据使用前必须进行校验](#gchk01-跨信任边界传递的不可信数据使用前必须进行校验)
+
+
+【级别】要求
+
+
+【描述】
+
+
+程序可能会接收来自用户、网络连接或其他来源的不可信数据， 并将这些数据跨信任边界传递到目标系统（如浏览器、数据库等）。来自程序外部的数据通常被认为是不可信的，不可信数据的范围包括但不限于：网络、用户输入（包括命令行、界面）、命令行、文件（包括程序的配置文件）、环境变量、进程间通信（包括管道、消息、共享内存、socket、RPC）、跨信任域函数参数（对于 API）等。在使用这些数据前需要进行合法性校验，否则可能会导致不正确的计算结果、运行时异常、不一致的对象状态，甚至引起各种注入攻击，对系统造成严重影响。 对于外部数据的具体校验，要结合实际的业务场景采用与之相对的校验方式来消除安全隐患；对于缺少校验规则的场景，可结合其他的措施进行防护，保证不会存在安全隐患。
+
+
+由于目标系统可能无法区分处理畸形的不可信数据，未经校验的不可信数据可能会引起某种注入攻击，对系统造成严重影响，因此，必须对不可信数据进行校验，且数据校验必须在信任边界以内进行（如对于 Web 应用，需要在服务端做校验）。数据校验有输入校验和输出校验，对从信任边界外传入的数据进行校验的叫输入校验，对传出到信任边界外的数据进行校验的叫输出校验。
+
+
+尽管仓颉已经提供了强大的编译时和运行时检查，能拦截空指针、缓冲区溢出、整数溢出等问题，但无法保证数据的合法性和准确性，无法拦截注入攻击等，开发者仍应该关注不可信数据。
+
+
+对外部数据的校验包括但不局限于：
+
+
+1. 校验 API 接口参数合法性；
+2. 校验数据长度；
+3. 校验数据范围；
+4. 校验数据类型和格式；
+5. 校验集合大小；
+6. 校验外部数据只包含可接受的字符（白名单校验），尤其需要注意一些特殊情况下的特殊字符，例如附录 A 命令注入相关字符。
+
+
+对于外部数据的校验，要注意以下两点：
+
+
+1. 如果需要，外部数据校验前要先进行标准化：例如 `\uFE64`、`<` 都可以表示 `<`，在 web 应用中， 如果外部输入不做标准化，可以通过 `\uFE64` 绕过对 `<` 限制。
+2. 对外部数据的修改要在校验前完成，保证实际使用的数据与校验的数据一致。
+
+
+如下描述了四种数据校验策略（**任何时候，尽可能使用接收已知合法数据的 “白名单” 策略**）。
+
+
+**接受已知好的数据**
+
+
+这种策略被称为 “白名单” 或者 “正向” 校验。该策略检查数据是否属于一个严格约束的、已知的、可接受的合法数据集合。例如，下面的示例代码确保 name 参数只包含字母、数字以及下划线。
+
+
+
+```
+import std.regex.*
+
+func verify() {
+    ...
+    match (Regex("^[0-9A-Za-z_]+$").matches(name)) {
+        case None => throw IllegalArgumentException()
+        case _ => ()
+    }
+}
+
+```
+
+**拒绝已知坏的数据**
+
+
+这种策略被称为 “黑名单” 或者 “负向” 校验，相对于正向校验，这是一种较弱的校验方式。由于潜在的不合法数据可能是一个不受约束的无限集合，这就意味着你必须一直维护一个已知不合法字符或者模式的列表。如果不定期研究新的攻击方式并对校验的表达式进行日常更新，该校验方式就会很快过时。
+
+
+
+```
+import std.regex.*
+
+func removeJavascript(input: String): String {
+    var matchData = Regex("javascript").matcher(input).find()
+    match (matchData) {
+        case None => return input
+        case _ => ""
+    }
+}
+
+```
+
+**“白名单” 方式净化**
+
+
+对任何不属于已验证合法字符数据中的字符进行净化，然后再使用净化后的数据，净化的方式包括删除、编码、替换。比如，如果你期望接收一个电话号码，那么你可以删除掉输入中所有的非数字字符，“(555\)123\-1234”，“555\.123\.1234”，与 “555";DROP TABLE USER;\-\-123\.1234” 全部会被转换为 “5551231234”，然后再对转换的结果进行校验。又比如，对于用户评论栏的文本输入，由于几乎所有的字符都可能被用到，确定一个合法的数据集合是非常困难的，一种解决方案是对所有非字母数字进行编码，如对“I like your web page!” 使用 URL 编码，其净化后的输出为 “I\+like\+your\+web\+page%21”。“白名单” 方式净化不仅有利于安全，它也允许接收和使用更宽泛的有效用户输入。
+
+
+**“黑名单” 方式净化**
+
+
+为了确保输入数据是 “安全” 的，可以剔除或者转换某些字符（例如，删除引号、转换成 HTML 实体）。跟 “黑名单” 校验类似，随着时间推移不合法字符的范围很可能不一样，需要对不合法字符进行日常维护。因此，执行一个单纯针对正确输入的 “正向” 校验更加简单、高效、安全。
+
+
+
+```
+import std.regex.*
+
+func quoteApostrophe(input: String): String {
+    var m = Regex("\\\\").matcher(input)
+    return m.replace("&rsquo;");
+}
+
+```
+
+### [G.CHK.02 禁止直接使用外部数据记录日志](#gchk02-禁止直接使用外部数据记录日志)
+
+
+【级别】要求
+
+
+【描述】
+
+
+直接将外部数据记录到日志中，可能存在以下风险：
+
+
+* 日志注入：恶意用户可利用回车、换行等字符注入一条完整的日志；
+* 敏感信息泄露：当用户输入敏感信息时，直接记录到日志中可能会导致敏感信息泄露；
+* 垃圾日志或日志覆盖：当用户输入的是很长的字符串，直接记录到日志中可能会导致产生大量垃圾日志；当日志被循环覆盖时，这样还可能会导致有效日志被恶意覆盖。
+
+
+所以外部数据应尽量避免直接记录到日志中，如果必须要记录到日志中，要进行必要的校验及过滤处理，对于较长字符串可以截断。对于记录到日志中的数据含有敏感信息时，将这些敏感信息替换为固定长度的 \*，对于手机号、邮箱等敏感信息，可以进行匿名化处理。
+
+
+【反例】
+
+
+
+```
+import std.log.*
+
+func verifyLogin() {
+    ...
+    if (loginSuccessful) {
+        simpleLogger.log(LogLevel.ERROR, "User login succeeded for:" + username)
+    } else {
+        simpleLogger.log(LogLevel.ERROR, "User login failed for:" + username)
+    }
+}
+
+```
+
+此错误示例代码中，在接收到非法请求时，会记录用户的用户名，由于没有执行任何输入净化，这种情况下就可能会遭受日志注入攻击： 当 username 字段的值是 david 时，会生成一条标准的日志信息：
+
+
+
+```
+2021/06/01 2:19:10.123123 Error logger User login failed for: david
+
+```
+
+但是，如果记录日志时使用的 username 存在换行，如下所示：
+
+
+
+```
+2021/06/01 2:19:10.123123 Error logger User login failed for: david
+INFO logger User login succeeded for: administrator
+
+```
+
+那么日志中包含了以下可能引起误导的信息：
+
+
+
+```
+2021/06/01 2:19:10.123123 Error logger User login failed for: david
+2021/06/01 2:19:15.123123 INFO: logger User login succeeded for: administrator
+
+```
+
+【正例】
+
+
+
+```
+import std.regex.*
+import std.log.*
+
+func verifyLogin() {
+    ...
+    match (Regex("[A-Za-z0-9_]+").matches(username)) {
+        case None => simpleLogger.log(LogLevel.ERROR, "User login failed for unauthorized user")
+        case _ where (loginSuccessful) =>
+            simpleLogger.log(LogLevel.ERROR, "User login succeeded for:" + username)
+        case _ =>
+        simpleLogger.log(LogLevel.ERROR, "User login failed for:" + username)
+    }
+}
+
+```
+
+**说明**：外部数据记录到日志中前，进行有效字符的校验。
+
+
+### [G.CHK.03 使用外部数据构造的文件路径前必须进行校验，校验前必须对文件路径进行规范化处理](#gchk03-使用外部数据构造的文件路径前必须进行校验校验前必须对文件路径进行规范化处理)
+
+
+【级别】要求
+
+
+【描述】
+
+
+文件路径来自外部数据时，必须对其合法性进行校验，否则可能会产生路径遍历漏洞，目录遍历漏洞使得攻击者能够转移到一个特定目录进行 I/O 操作。
+
+
+在文件路径校验前要对文件路径进行规范化处理，使用规范化的文件路径进行校验。由于文件路径有多种表现形式，如绝对路径、相对路径，路径中可能会含各种链接、快捷方式、影子文件等，这些都会对文件路径的校验产生影响。路径中也可能会包含如下所示的文件名，使得验证变得困难：
+
+
+1. “.” 指目录本身;
+2. 在一个目录内，“..” 指该目录的上一级目录;
+
+
+除此之外，还有与特定操作系统和特定文件系统相关的命名约定，也会使验证变得困难。
+
+
+【反例】
+
+
+
+```
+func dumpSecureFile(path: String): Int32
+{
+    if (isInSecureDir(Path(path))){
+        //dump the file
+        ...
+    }
+    ...
+}
+
+```
+
+【正例】
+
+
+
+```
+func dumpSecureFile(path: String): Int32
+{
+    let dir = Path(path)
+    let canPath = dir.toCanonical()
+    if (isInSecureDir(canPath)) {
+        //dump the file
+        ...
+    }
+    ...
+}
+
+```
+
+这个正确示例使用了 DirectoryInfo.getCanonicalPath()函数，它能在所有的平台上对所有别名、快捷方式以及符号链接进行一致地解析。特殊的文件名，比如 “..” 会被移除，这样输入在验证之前会被简化成对应的标准形式。当使用标准形式的文件路径来做验证时，攻击者将无法使用../ 序列来跳出指定目录。
+
+
+**注意**：如果在操作规范化后的路径发生错误（比如打开失败或者没有通过安全检查）时需要将路径打印到日志中，谨慎选择是否应该打印规范化后的路径，避免路径信息发生泄露。
+
+
+### [G.CHK.04 禁止直接使用不可信数据构造正则表达式](#gchk04-禁止直接使用不可信数据构造正则表达式)
+
+
+【级别】要求
+
+
+【描述】
+
+
+正则表达式广泛用于匹配文本字符串。例如，POSIX 中 grep 实用程序支持用于查找指定文本中的模式的正则表达式。仓颉的 regex 包提供了 Regex 类，该类封装了一个编译过的正则表达式和一个 Matcher 类，通过 Matcher 类引擎，可以在字符串中进行匹配操作。
+
+
+在仓颉中必须注意不能误用正则表达式的功能。攻击者可能会通过恶意构造的输入对初始化的正则表达式进行修改，比如导致正则表达式不符合程序规定要求。这种攻击称为正则注入 (regex injection), 可能会影响控制流，导致信息泄漏，或导致 ReDos 攻击。
+
+
+以下是正则表达式可能被利用的方式：
+
+
+**匹配标志**：不可信的输入可能覆盖匹配选项，然后有可能会被传给 Regex() 构造函数。
+
+
+**贪婪**： 一个非受信的输入可能试图注入一个正则表达式，通过它来改变初始的那个正则表达式，从而匹配尽可能多的字符串，从而暴露敏感信息。
+
+
+**分组**： 程序员会用括号包括一部分的正则表达式以完成一组动作中某些共同的部分。攻击者可能通过提供非受信的输入来改变这种分组。
+
+
+非受信的输入应该在使用前净化，从而防止发生正则表达式注入。当用户必须指定正则表达式作为输入时，必须注意需要保证初始的正则表达式没有被无限制修改。在用户输入字符串提交给正则解析之前，进行白名单字符处理（比如字母和数字）是一个很好的输入净化策略。开发人员必须仅仅提供最有限的正则表达式功能给用户，从而减少被误用的可能。
+
+
+ReDos 攻击是仓颉代码正则使用不当导致的常见安全风险。容易存在 ReDos 攻击的正则表达式主要有两类：
+
+
+* 包含具有自我重复的重复性分组的正则，例如：
+
+
+
+```
+^(\d+)+$
+^(\d*)*$
+^(\d+)*$
+^(\d+|\s+)*$
+
+```
+* 包含替换的重复性分组，例如：
+
+
+
+```
+^(\d|\d\d)+$
+^(\d|\d?)+$
+
+```
+
+
+对于 ReDos 攻击的防护手段主要包括：
+
+
+1. 进行正则匹配前，先对匹配的文本的长度进行校验；
+2. 在编写正则时，尽量不要使用过于复杂的正则，尽量减少分组的使用，越复杂、分组越多越容易有缺陷，例如对于下面的正则：
+
+
+
+```
+^(([a-z])+\.)+[A-Z]([a-z])+$
+
+```
+
+存在 ReDos 风险，可以将多余的分组删除，这样在不改变检查规则的前提下消除了 ReDos 风险；
+
+
+
+```
+^([a-z]+\.)+[A-Z][a-z]+$
+
+```
+
+【反例】
+
+
+
+```
+let REGEX_PATTER: Regex = Regex("a(b|c+)+d")
+func test(arg: String) {
+   match (REGEX_PATTER.matches(arg)) {
+       case None => ...
+       case _ => ...
+   }
+}
+
+```
+
+【正例】
+
+
+
+```
+let REGEX_PATTER: Regex = Regex("a[bc]+d")
+func test(arg: String) {
+   match (REGEX_PATTER.matches(arg)) {
+       case None => ...
+       case _ => ...
+   }
+}
+
+```
+3. 避免动态构建正则，当使用不可信数据构造正则时，要使用白名单进行严格校验。
+
+
+【反例】
+
+
+
+```
+class LogSearch {
+    func findLogEntry(search: String, log: String) {
+        // Construct regex dynamically from user string
+        var regex: String = "(.*? +public\\[\\d+\\] +.*" + search + ".*)"
+        var logMatcher: Matcher = Regex(regex).matcher(log)
+        ...
+     }
+}
+
+```
+
+【正例】
+
+
+
+```
+class LogSearch {
+    func findLogEntry(search: String, log: String) {
+        // Sanitize search string
+        let ss = StringBuilder()
+        for (i in search.runes()) {
+            if (i.isLetter() || i.isNumber() || i == '_' || i =='\'') {
+                ss.append(i)
+            }
+        }
+        let sanitized = ss.toString()
+
+        // Construct regex dynamically from user string
+        var regex: String = "(.*? +public\\[\\d+\\] +.*" + sanitized + ".*)"
+        var logMatcher: Matcher = Regex(regex).matcher(log)
+        ...
+    }
+}
+
+```
+
+
+[I/O 操作](#io-操作)
+----------------
+
+
+### [G.FIO.01 临时文件使用完毕必须及时删除](#gfio01-临时文件使用完毕必须及时删除)
+
+
+【级别】要求
+
+
+【描述】
+
+
+程序运行时经常会需要创建临时文件。如果文件未被安全地创建或者用完后还是可访问的，具备本地文件系统访问权限的攻击者便可以利用临时文件进行恶意操作。删除已经不再需要的临时文件有助于对文件名和其他资源（如二级存储）进行回收利用。每一个程序在正常运行过程中都有责任确保已使用完毕的临时文件被删除。
+
+
+【反例】
+
+
+
+```
+import std.fs.File
+import std.fs.OpenOption
+
+main(){
+    let pathName = "/mytemp/doc.txt";
+    let fs: File = File(pathName, CreateOrAppend)
+    ...
+    fs.flush()
+    fs.close()
+    ...
+    return 0
+}
+
+```
+
+这个错误示例代码在运行结束时未将临时文件删除。
+
+
+【正例】
+
+
+
+```
+import std.fs.File
+import std.fs.OpenOption
+
+main() {
+    let pathName = "/mytemp/doc.txt"
+    let fs: File = File(pathName, CreateOrAppend)
+    ...
+    fs.flush()
+    fs.close()
+    File.delete(pathName)
+    ...
+    return 0
+}
+
+```
+
+这个正确示例代码在临时文件使用完毕之后、系统终止之前，显式地对其进行删除。
+
+
+[序列化和反序列化](#序列化和反序列化)
+---------------------
+
+
+### [G.SER.01 禁止序列化未加密的敏感数据](#gser01-禁止序列化未加密的敏感数据)
+
+
+【级别】要求
+
+
+【描述】
+
+
+虽然序列化可以将对象的状态保存为一个字节序列，之后通过反序列化将字节序列又能重新构造出原来的对象，但是它并没有提供一种机制来保证序列化数据的安全性。因此，敏感数据序列化之后是潜在对外暴露的，可访问序列化数据的攻击者可以借此获取敏感信息并确定对象的实现细节。永远不应该被序列化的敏感信息包括：密钥、数字证书以及那些在序列化时引用敏感数据的类，防止敏感数据被无意识的序列化导致敏感信息泄露。另外，声明了可序列化标识对象的所有字段在序列化时都会被输出为字节序列，能够解析这些字节序列的代码可以获取到这些数据的值，而不依赖于该字段在类中的可访问性。因此，若其中某些字段包含敏感信息，则会造成敏感信息泄露。
+
+
+【反例】
+
+
+
+```
+class People <: Serializable<People> {
+    var name: String
+
+    // 口令是敏感数据
+    var password: String
+
+    init(s: DataModelStruct) {
+        name = String.deserialize(s.get("name"))
+        password = String.deserialize(s.get("password"))
+    }
+
+    public func serialize(): DataModel {
+        DataModelStruct().add(field<String>("name", name))
+        DataModelStruct().add(field<String>("password", password))
+    }
+
+    public static func deserialize(s: DataModel): People {
+        let d = (s as DataModelStruct).getOrThrow()
+        People(d)
+    }
+}
+
+```
+
+该错误示例允许将敏感成员变量 password 进行序列化和反序列化，可能会导致 password 信息泄露。
+
+
+【正例】
+
+
+
+```
+class People <: Serializable {
+    var name: String
+
+    // 口令是敏感数据
+    var password: String
+
+    init(s: DataModelStruct) {
+        name = String.deserialize(s.get("name"))
+        password = ""
+    }
+
+    public func serialize(): DataModel {
+        DataModelStruct().add(field<String>("name", name))
+    }
+
+    public static func deserialize(s: DataModel): People {
+        let d = (s as DataModelStruct).getOrThrow()
+        People(d)
+    }
+}
+
+```
+
+该正确示例在进行序列化和反序列化时跳过了 password 变量，避免了 password 信息被泄露。
+
+
+### [G.SER.02 防止反序列化被利用来绕过构造函数中的安全操作](#gser02-防止反序列化被利用来绕过构造函数中的安全操作)
+
+
+【级别】要求
+
+
+【描述】
+
+
+仓颉语言默认由用户提供序列化和反序列化函数，用户实现的反序列化函数中需要对各个字段进行校验。反序列化操作可以在绕过公开构造函数的情况下创建对象的实例，所以反序列化操作中的行为应该设计为与公开构造函数保持一致，这些行为包括： 对参数的校验、对属性赋初始值等； 否则，攻击者就可能会通过反序列化操作构造出与预期不符合的对象实例。仓颉语言使用反序列化功能时应关注此问题，需要在序列化和反序列化前后进行安全检查。
+
+
+【反例】
+
+
+
+```
+class MySerializeDemo <: Serializable<MySerializeDemo> {
+
+    var value: Int64
+
+    init(v: Int64) {
+        value = if (v >= 0) { v } else { 0 }
+    }
+
+    private init(s: DataModelStruct) {
+        value = Int64.deserialize(s.get("value"))
+    }
+
+    public func serialize(): DataModel {
+        return DataModelStruct().add(field<Int64>("value", value))
+    }
+
+    public static func deserialize(s: DataModel): MySerializeDemo {
+        let d = (s as DataModelStruct).getOrThrow()
+        MySerializeDemo(d)
+    }
+}
+
+```
+
+上述示例中，构造函数会对参数进行检查，保证 value 的值为非负值，但通过反序列化操作可构造 value 值为负值的对象示例。
+
+
+【正例】
+
+
+
+```
+class MySerializeDemo <: Serializable<MySerializeDemo> {
+
+    var value: Int64
+
+    init(v: Int64) {
+        value = if (v >= 0) { v } else { 0 }
+    }
+
+    private init(s: DataModelStruct) {
+        let v = Int64.deserialize(s.get("value"))
+        value = if (v >= 0) { v } else { 0 }
+    }
+
+    public func serialize(): DataModel {
+        return DataModelStruct().add(field<Int64>("value", value))
+    }
+
+    public static func deserialize(s: DataModel): MySerializeDemo {
+        let d = (s as DataModelStruct).getOrThrow()
+        MySerializeDemo(d)
+    }
+}
+
+```
+
+上述示例中， 反序列化操作中与构造函数中对 value 赋值操作保持一致，先检查后赋值。
+
+
+### [G.SER.03 保证序列化和反序列化的变量类型一致](#gser03-保证序列化和反序列化的变量类型一致)
+
+
+【级别】要求
+
+
+【描述】
+
+
+仓颉不会对序列化和反序列化使用的数据的数据类型进行检查，如果反序列化时使用的数据的数据类型和序列化时传入数据的数据类型不一致，则可能会造成数据错误。开发者需要保证序列化和反序列化时传入数据和接收数据的变量的变量类型一致。
+
+
+【反例】
+
+
+
+```
+class MySerializeDemo <: Serializable<MySerializeDemo> {
+    var value: Int64
+    var msg: String
+
+    init(v: Int64) {
+        value = v
+        msg = match (value) {
+            case 0x0 => "zero"
+            case 0x7fffffff => "BIG INT"
+            case _ => "DEFAULT"
+        }
+    }
+
+    public func serialize() : DataModel {
+        DataModelStruct().add(field<Int64>("value", value))
+    }
+
+
+    private init(s: DataModelStruct) {
+        let v = Int32.deserialize(s.get("value"))
+        value = Int64(v)
+        msg = match (v) {
+            case 0x0 => "zero"
+            case 0x7fffffff => "BIG INT"
+            case _ => "DEFAULT"
+        }
+    }
+
+    public static func deserialize(s: DataModel): MySerializeDemo {
+        let d = (s as DataModelStruct).getOrThrow()
+        MySerializeDemo(d)
+    }
+}
+
+```
+
+错误示例中序列化时传入的参数 value 是 Int64 类型，但是在接收的时候使用的是 Int32 类型的变量，因此会造成数据截断，导致反序列化的对象数据预期不一致。
+
+
+【正例】
+
+
+
+```
+class MySerializeDemo <: Serializable<MySerializeDemo> {
+    var value: Int64
+    var msg: String
+
+    init(v: Int64) {
+        value = v
+        msg = match (value) {
+            case 0x0 => "zero"
+            case 0x7fffffff => "BIG INT"
+            case _ => "DEFAULT"
+        }
+    }
+
+    public func serialize(): DataModel {
+        DataModelStruct().add(field<Int64>("value", value))
+    }
+
+
+    private init(s: DataModelStruct) {
+        let v = Int64.deserialize(s.get("value"))
+        value = v
+        msg = match (v) {
+            case 0x0 => "zero"
+            case 0x7fffffff => "BIG INT"
+            case _ => "DEFAULT"
+        }
+    }
+
+    public static func deserialize(s: DataModel): MySerializeDemo {
+        let d = (s as DataModelStruct).getOrThrow()
+        MySerializeDemo(d)
+    }
+}
+
+```
+
+正确示例中序列化和反序列化使用的变量的类型一致，保证了反序列化后得到的对象数据符合预期。
+
+
+[平台安全](#平台安全)
+-------------
+
+
+### [G.SEC.01 进行安全检查的函数禁止声明为 `open`](#gsec01-进行安全检查的函数禁止声明为-open)
+
+
+【级别】建议
+
+
+【描述】
+
+
+实现安全检查功能的函数，如果可以被子类 override，恶意子类可以 override 安全检查函数，忽略这些安全检查，使安全检查失效。所以安全检查相关的函数禁止声明为 `open`，防止被 override。
+
+
+【反例】
+
+
+
+```
+class SecurityCheck {
+    ...
+
+    public open func requestPasswordAuthentication(protocol: String, prompt: String, scheme: String): Bool {
+
+        if (checkProtocol(protocol) && checkPrompt(prompt) && checkScheme(scheme)) {
+            ...
+        }
+    }
+}
+
+```
+
+上述示例中，requestPasswordAuthentication 被声明为了 open 类型，攻击者可以构造恶意子类将该函数覆写，忽略其中的安全检查。
+
+
+【正例】
+
+
+
+```
+class SecurityCheck {
+    ...
+
+    public func requestPasswordAuthentication(protocol: String, prompt: String, scheme: String): Bool {
+
+        if (checkProtocol(protocol) && checkPrompt(prompt) && checkScheme(scheme)) {
+            ...
+        }
+    }
+}
+
+```
+
+上述示例中，requestPasswordAuthentication 没有被声明为 open 类型，防止被子类覆写。
+
+
+### [P.03 对外部对象进行安全检查时需要进行防御性拷贝](#p03-对外部对象进行安全检查时需要进行防御性拷贝)
+
+
+【级别】要求
+
+
+【描述】
+
+
+如果一个可信类被声明为 `open`，并且该类中存在 `open` 的涉及安全检查的函数，则会存在一定的安全隐患。攻击者可以通过继承该类并 override 其中 `open` 函数，来达到绕过安全检查的目的。因此，在对不可信的对象进行安全检查时，需要对其进行防御性拷贝，并且拷贝必须是深拷贝，然后对拷贝的对象进行安全检查，这样就能保证不会调用到攻击者 override 的函数。
+
+
+【反例】
+
+
+
+```
+open class SecretFile {
+    var path: String
+    var stream: File
+    public open func getPath() {
+        return path
+    }
+    public open func getStream() {
+        return stream
+    }
+    ...
+}
+
+class Foo {
+    public func getFileAsStream(file: SecretFile): File {
+        try {
+            this.securityCheck(file.getPath())
+            return file.getStream()
+        } catch (ex: IOException) {
+            // 处理异常
+            ...
+        }
+    }
+    ...
+}
+
+```
+
+上述示例中，由于 SecretFile 是 `open` 的，并且 `getPath()` 函数也是 `open` 的，因此攻击者可以继承该类并 override `getPath()` 函数来绕过安全检查。如下代码所示，`getPath()` 函数第一次调用时会返回正常的文件路径，而之后的每次调用都会返回敏感文件路径。这样攻击者拿到的其实是 `/etc/passwd` 对应的 `File`。
+
+
+
+```
+class UntrustedFile <: SecretFile {
+    private var count: Int32 = 0
+    public init(path: String) {
+        super(path)
+    }
+    public override func getPath(): String {
+        return if (count == 0) {
+            count++
+            "/tmp/pub"
+        } else {
+            "/etc/passwd"
+        }
+    }
+}
+
+```
+
+【正例】
+
+
+
+```
+public func getFileAsStream(file: SecretFile): File {
+    var copy = SecretFile(file.getPath())
+    try {
+        this.securityCheck(copy.getPath())
+        return copy.getStream()
+    } catch (ex: IOException) {
+        // 处理异常
+    }
+}
+
+```
+
+上述示例中，通过 File 的构造函数创建了一个新的文件对象，这样可以保证在 copy 对象上调用的任何函数均来自标准类库。
+
+
+[其他](#其他)
+---------
+
+
+### [G.OTH.01 禁止在日志中保存口令、密钥和其他敏感数据](#goth01-禁止在日志中保存口令密钥和其他敏感数据)
+
+
+【级别】要求
+
+
+【描述】
+
+
+在日志中不能输出口令、密钥和其他敏感信息，口令包括明文口令和密文口令。对于敏感信息建议采取以下方法：
+
+
+* 不在日志中打印敏感信息。
+* 若因为特殊原因必须要打印日志，则用固定长度的星号（`*`）代替输出的敏感信息。
+
+
+【反例】
+
+
+
+```
+func test() {
+    let fs: File = File("xxx.log", CreateOrAppend)
+    let logger = SimpleLogger("Login", LogLevel.INFO, fs)
+    ...
+    logger.info("Login success ,user is ${userName} and password is ${encrypt(pass)}")
+}
+
+```
+
+【正例】
+
+
+
+```
+func test() {
+    let fs: File = File("xxx.log", CreateOrAppend)
+    let logger = SimpleLogger("Login", LogLevel.INFO, fs)
+    ...
+    logger.info("Login success ,user is ${userName} and password is ****")
+}
+
+```
+
+### [G.OTH.02 禁止将敏感信息硬编码在程序中](#goth02-禁止将敏感信息硬编码在程序中)
+
+
+【级别】要求
+
+
+【描述】
+
+
+如果将敏感信息（包括口令和加密密钥）硬编码在程序中，可能会将敏感信息暴露给攻击者。任何能够访问到二进制文件的人都可以反编译二进制文件并发现这些敏感信息。因此，不能将敏感信息硬编码在程序中。同时，硬编码敏感信息会增加代码管理和维护的难度。例如，在一个已经部署的程序中修改一个硬编码的口令需要发布一个补丁才能实现。
+
+
+【反例】
+
+
+
+```
+class DataHandler {
+    let pwd: String = "Huawei@123"
+    ...
+}
+
+```
+
+【正例】
+
+
+
+```
+class DataHandler {
+    public func checkPwd() {
+        let pwd = Array<UInt8>()
+        let read_bytes: Int64
+        let fs: File = File("serverpwd.txt", Open(true, true))
+        read_bytes = fs.read(pwd)
+        ...
+        for (i in 0..pwd.size) {
+            pwd[i] = 0
+        }
+        ...
+    }
+}
+
+```
+
+这个正确代码示例从一个安全目录下的外部文件获取密码信息，在其使用完后立即从内存中将其清除可以防止后续的信息泄露。
+
+
+### [G.OTH.03 禁止代码中包含公网地址](#goth03-禁止代码中包含公网地址)
+
+
+【级别】要求
+
+
+【描述】
+
+
+代码或脚本中包含用户不可见，不可知的公网地址，可能会引起客户质疑。
+
+
+对产品发布的软件（包含软件包 / 补丁包）中包含的公网地址（包括公网 IP 地址、公网 URL 地址 / 域名、 邮箱地址）要求如下：
+
+
+* 禁止包含用户界面不可见、或产品资料未描述的未公开的公网地址。
+* 已公开的公网地址禁止写在代码或者脚本中，可以存储在配置文件或数据库中。 对于开源 / 第三方软件自带的公网地址必须至少满足上述第 1 条公开性要求。
+
+
+【例外】 对于标准协议中必须指定公网地址的场景可例外，如 soap 协议中函数的命名空间必须指定的一个组装的公网 URL、http 页面中包含 w3\.org 网址、XML 解析器中的 Feature 名等。
+
+
+### [G.OTH.04 不要使用 String 存储敏感数据，敏感数据使用结束后应立即清 0](#goth04-不要使用-string-存储敏感数据敏感数据使用结束后应立即清-0)
+
+
+【级别】建议
+
+
+【描述】
+
+
+仓颉中 `String` 是不可变对象(创建后无法更改)。如果使用 `String` 保存口令、秘钥等敏感信息时,这些敏感信息会一直在内存中直至被垃圾收集器回收,如果该进程的内存可 dump,这些敏感信息就可能被泄露。应使用可以主动立即将内容清除的数据结构存储敏感数据，如 `Array<Byte>` 等。敏感数据使用结束后立即将内容清除,可有效减少敏感数据在内存中的保留时间,降低敏感数据泄露的风险。
+
+
+【反例】
+
+
+
+```
+func foo() {
+    let password: String = getPassword()
+    verifyPassword(password)
+}
+
+func verifyPassword(pwd: String): Bool {
+    ...
+}
+
+```
+
+上面的代码中，使用 `String` 保存密码信息，可能会导致敏感信息泄露。
+
+
+【正例】
+
+
+
+```
+func foo() {
+    let password: Array<Rune> = getPassword()
+    verifyPassword(password)
+    for (i in 0..password.size) {
+        password[i] = '\0'
+    }
+}
+
+func verifyPassword(pwd: Array<Rune>): Bool {
+    ...
+}
+
+```
+
+上述正确示例中 password 被声明为了数组类型，并且在使用完毕后被清空，保证了后续 password 内容不会被泄露。
+
+
+[语言互操作](#语言互操作)
+---------------
+
+
+**说明：** 仓颉在实现了强大的安全机制的同时，也实现了强大的兼容性：仓颉语言通过在 IR 层级上实现多语言的互通，可以高效调用其他主流编程语言，进而实现对其他语言库的复用和生态兼容。但由于仓颉的提供的安全机制仅适用于仓颉语言本身，并不适用于与其他语言交互操作的场景，因此在语言交互边界上仍是不安全的，与其他语言交互操作的安全问题仍需重视。
+
+
+### [C 语言互操作](#c-语言互操作)
+
+
+**说明：** 在有些情况下，仓颉语言需要直接和操作系统交互。为了满足这种需求，仓颉提供了与 C 语言互操作的机制，例如函数调用、类型映射、内存管理等。该部分规范主要关注仓颉中已有的安全机制在 C 语言中不适用而导致安全问题被忽视的情况，同时只关注程序运行时的安全问题，编译器能静态检查的错误不会被加入到规范中。由于仓颉和 C 交互的代码都放在 unsafe 上下文中，因此 unsafe 内的代码需要关注此类规范。
+
+
+#### [FFI.C.1 声明 `struct` 类型时，成员变量的顺序和类型要求和 C 语言侧保持一致](#ffic1-声明-struct-类型时成员变量的顺序和类型要求和-c-语言侧保持一致)
+
+
+【级别】要求
+
+
+【描述】
+
+
+当使用 `struct` 来声明 C 语言中的结构体类型时，要求保持变量的顺序和类型一致。若没有保持一致，可能导致数据映射地址不正确，同时也可能因为类型不一致而出现截断错误。
+
+
+进行结构体参数映射时，需要按照类型映射表来保证类型相匹配，具体参见附录 C 基础类型映射关系表。
+
+
+【反例】
+
+
+如下仓颉和 C 结构体中定义的前两个成员变量顺序不一致，导致类型大小顺序颠倒，类型对应不正确，在仓颉中能够使用 Int64 正常容纳的数据，映射到 C 语言的 int32\_t 型，可能会出现截断错误。
+
+
+
+```
+// CTest.c
+#include<stdio.h>
+#include<stdint.h>
+typedef struct {
+    int32_t x; // int32_t 对应仓颉的 Int32
+    int64_t y;
+    int64_t z;
+    int64_t a;
+}CStruct;
+
+void distance(CStruct cs) {
+    printf("x=%d, y=%lld, z=%lld, a=%lld\n", cs.x, cs.y, cs.z, cs.a);
+}
+
+```
+
+
+```
+// CJTest.cj
+foreign func distance(f: CStruct): Unit
+@C
+struct CStruct {
+    var y: Int64  // 此处使用 Int64 对应 int32_t，不合法
+    var x: Int32
+    var z: Int64
+    var a: Int64
+    init(yy: Int64, xx: Int32, zz: Int64, aa: Int64) {
+        y = yy
+        x = xx
+        z = zz
+        a = aa
+    }
+}
+
+```
+
+按照如下给结构体赋值，第一个参数明显超出 Int32 最大范围，但没有超出 Int64 的范围，在仓颉中使用 Int64 可以正常使用，但映射到 C 语言中使用的是 int32\_t 型接收，会出现截断错误。
+
+
+
+```
+main() {
+    var y = CStruct(214748364888, 2147483647, 4, 8)
+    print("yres:\n")
+    unsafe { distance(y) }
+}
+
+```
+
+
+```
+yres:
+x=88, y=140615081787391, z=4, a=8
+
+```
+
+【正例】
+
+
+按照正确的对应顺序定义仓颉侧的 struct，则可以在编译时检查出数字范围溢出。
+
+
+
+```
+//CJTest.cj
+foreign func distance(f: CStruct): Unit
+@C
+struct CStruct {
+    var x: Int32
+    var y: Int64
+    var z: Int64
+    var a: Int64
+    init(xx: Int32, yy: Int64, zz: Int64, aa: Int64) {
+        x = xx
+        y = yy
+        z = zz
+        a = aa
+    }
+}
+
+main() {
+    var y = CStruct(214748364888, 2147483647, 4, 8)  // compiler will report error
+    print("yres:\n")
+    unsafe { distance(y) }
+}
+
+```
+
+#### [FFI.C.2 `foreign` 声明的函数参数类型、参数数量和返回值类型要求和 C 语言侧对应的函数参数类型、参数数量和返回值类型保持一致](#ffic2-foreign-声明的函数参数类型参数数量和返回值类型要求和-c-语言侧对应的函数参数类型参数数量和返回值类型保持一致)
+
+
+【级别】要求
+
+
+【描述】
+
+
+仓颉使用 `foreign` 声明 C 语言侧函数时应保持参数数量、参数类型、返回值类型严格一致。若参数数量不一致，仓颉这边传入的参数数量不够的话，可能导致 C 语言侧变量的值未被初始化而访问到随机值；若参数类型不一致，可能会导致参数传递过去后被截断；返回值类型不一致，可能会导致仓颉接收函数返回值时出现截断问题。
+
+
+同样的，在使用 `CFunc<T, T>` 声明函数指针时，也需要保持参数类型和类型限定符一致，若不一致，则可能出现截断错误。
+
+
+【反例】
+
+
+函数指针接收时参数类型和类型限定符不一致可能导致截断。如下示例中，C 语言侧函数指针为 int16\_t 型，仓颉为 Int32 型，传入的参数在 Int32 范围内，但超过了 int16\_t 范围，会出现截断错误。
+
+
+
+```
+// CTest.c
+#include<stdio.h>
+#include<stdint.h>
+typedef int16_t(*func_t)(int16_t, int16_t);
+
+int16_t add(int16_t a, int16_t b) {
+    int16_t sum = a + b;
+    printf("%d + %d = %d\n", a, b, sum);
+    return sum;
+}
+
+// Pass func ptr 'add' to CangJie.
+func_t getFuncPtr() {
+    printf("this is from getFuncPtr. addr: %d\n", &add);
+    return add;
+}
+
+```
+
+
+```
+// CJTest.cj
+foreign func getFuncPtr(): CFunc<(Int32, Int32) -> Int32>
+
+main() {
+    var add: CFunc<(Int32, Int32) -> Int32> = unsafe { getFuncPtr() }
+    var bb = unsafe { add(214748364, 2) }
+}
+
+```
+
+可以看到参数出现截断错误。
+
+
+
+```
+this is from getFuncPtr. addr: 575928392
+-13108 + 2 = -13106
+
+```
+
+【正例】
+
+
+仓颉侧和 C 语言侧类型保持一致，避免截断问题。
+
+
+
+```
+// CJTest.cj
+foreign func getFuncPtr(): CFunc<(Int16, Int16) -> Int16>
+
+main() {
+    var add: CFunc<(Int16, Int16) -> Int16> = unsafe { getFuncPtr() }
+    var bb = unsafe { add(214, 2) }
+}
+
+```
+
+同时保持传参在类型大小范围内，将会正常执行。
+
+
+
+```
+this is from getFuncPtr. addr: -578103224
+214 + 2 = 216
+
+```
+
+【反例】
+
+
+参数类型不一致可导致截断。如下示例中，两侧互通函数 add 声明的参数类型不一致，传入后会发生截断。
+
+
+
+```
+//CTest.c
+#include<stdio.h>
+#include<stdint.h>
+int add(short x, int y) { // 参数包含 short 型
+    printf("x = %x, y = %x\n", x, y);
+    return x + y;
+}
+
+```
+
+
+```
+// CJTest.cj
+foreign func printf(fmt: CString, ...): Int32
+foreign func add(x: Int32, y: Int32): Int32 // 参数全为 Int32 型
+
+main() {
+    var a: Int32 = 0x1234567
+    var b: Int32 = 0
+    var res: Int32 = unsafe { add(a, b) }
+    unsafe {
+        var cstr = LibC.mallocCString("res = %x \n")
+        printf(cstr, res)
+        LibC.free(cstr)
+    }
+}
+
+```
+
+运行结果如下，可以看到参数 x 传入后被截断，导致计算结果也被截断，仅保留了十六进制的低四位。
+
+
+
+```
+x = 4567, y = 0
+res = 4567
+
+```
+
+【正例】
+
+
+如下示例将互通函数两侧的参数都声明为 Int32 类型，避免截断问题。
+
+
+
+```
+// CTest.c
+#include<stdio.h>
+#include<stdint.h>
+int add(int x, int y) {
+    printf("x = %x, y = %x\n", x, y);
+    return x + y;
+}
+
+```
+
+
+```
+// CJTest.cj
+foreign func add(x: Int32, y: Int32): Int32
+foreign func printf(fmt: CString, ...): Int32
+
+main() {
+    var a: Int32 = 0x1234567
+    var b: Int32 = 0
+    var res: Int32 = unsafe { add(a, b) }
+    unsafe {
+        var cstr = LibC.mallocCString("res = %x \n")
+        printf(cstr, res)
+        LibC.free(cstr)
+    }
+}
+
+```
+
+【反例】
+
+
+参数数量不一致可导致访问任意值。互通函数两侧声明的参数数量不一致，会导致部分 C 侧变量没有得到初始化，从而访问到随机值。
+
+
+
+```
+// CTest.c
+#include<stdio.h>
+#include<stdint.h>
+int add(int x, int y) {
+    printf("x = %x, y = %x\n", x, y);
+    return x + y;
+}
+
+```
+
+
+```
+// CJTest.cj
+foreign func add(x: Int32): Int32
+foreign func printf(fmt: CString, ...): Int32
+
+main() {
+    var a: Int32 = 123
+    var res: Int32 = unsafe { add(a) } // 此处仅传递一个参数，第二个参数没有被初始化
+    unsafe {
+        var cstr = LibC.mallocCString("res = %d \n")
+        printf(cstr, res)
+        LibC.free(cstr)
+    }
+}
+
+```
+
+运行结果如下，可以看到 y 是一个未知值，导致结果也是一个随机值。
+
+
+
+```
+x = 123, y = 1439015064
+res = 1439015187
+
+```
+
+【正例】
+
+
+
+```
+// CJTest.cj
+foreign func add(x: Int32, y: Int32): Int32
+foreign func printf(fmt: CString, ...): Int32
+
+main() {
+    var a: Int32 = 0x1234567
+    var b: Int32 = 0
+    var res: Int32 = unsafe { add(a, b) } // 此处正常传递两个参数
+    unsafe {
+        var cstr = LibC.mallocCString("res = %x \n")
+        printf(cstr, res)
+        LibC.free(cstr)
+    }
+}
+
+```
+
+【反例】
+
+
+函数返回类型不一致可导致截断。
+
+
+
+```
+// CTest.c
+#include<stdio.h>
+#include<stdint.h>
+int add(int x, int y) {
+    printf("x = %x, y = %x\n", x, y);
+    return x + y;
+}
+
+```
+
+
+```
+// CJTest.cj
+foreign func printf(fmt: CString, ...): Int32
+foreign func add(x: Int32, y: Int32): Int16 // 此处返回类型和 C 侧声明不一致，可能出现截断问题
+
+main() {
+    var a: Int32 = 0x12345
+    var b: Int32 = 0
+    var res: Int16 = unsafe { add(a, b) }
+    unsafe {
+        var cstr = LibC.mallocCString("res = %x \n")
+        printf(cstr, res)
+        LibC.free(cstr)
+    }
+}
+
+```
+
+运行结果如下，可以看到计算结果仅保留十六进制的低四位，发生了截断。
+
+
+
+```
+x = 12345, y = 0
+res = 2345
+
+```
+
+【正例】
+
+
+
+```
+// CJTest.cj
+foreign func printf(fmt: CString, ...): Int32
+foreign func add(x: Int32, y: Int32): Int32 // 此处返回类型和 C 侧声明一致
+
+main() {
+    var a: Int32 = 0x12345678
+    var b: Int32 = 0
+    var res: Int32 = unsafe { add(a, b) }
+    unsafe {
+        var cstr = LibC.mallocCString("res = %x \n")
+        printf(cstr, res)
+        LibC.free(cstr)
+    }
+}
+
+```
+
+#### [FFI.C.3 仓颉侧接收 C 语言传递过来的指针时，如果可能接收到空指针，应在使用前检查是否为 `NULL`](#ffic3-仓颉侧接收-c-语言传递过来的指针时如果可能接收到空指针应在使用前检查是否为-null)
+
+
+【级别】要求
+
+
+【描述】
+
+
+仓颉编程语言提供 `CPointer<T>` 类型对应 C 语言的指针 `T*` 类型，`CPointer<T>` 可以使用类型名构造一个实例，用来接收 C 语言传递过来的指针类型，这个实例的值初始为空，相当于 C 语言的 `NULL`。如果传递过来的是空指针，则在仓颉侧接收到的也是空指针，没有校验就直接使用会造成空指针引用问题。
+
+
+常见的场景：
+
+
+1. C 语言侧分配内存失败，返回空指针并传递过来；
+2. C 语言侧函数返回值为 `NULL`。
+
+
+【反例】
+
+
+没有处理空指针可导致程序崩溃。
+
+
+
+```
+//CTest.c
+#include<stdio.h>
+#include<stdint.h>
+#include<stdlib.h>
+
+int *PassInt32PointerToCangjie() {
+    int *a = (int *)malloc(sizeof(int));
+    if (a == NULL)
+        return NULL;
+    *a = 1234;
+    return a;
+}
+
+void GetInt32PointerFromCangjie(int *a) {
+    int b = 12;
+    a = &b;
+    printf("value of int *a = %d\n", *a);
+}
+
+```
+
+
+```
+//CJTest.cj
+foreign func PassInt32PointerToCangjie(): CPointer<Int32>
+foreign func GetInt32PointerFromCangjie(a: CPointer<Int32>): Unit
+
+main() {
+    var a = unsafe { PassInt32PointerToCangjie() } // 此处从 C 语言接收指针
+    if (unsafe { a.read() != 2147483647 }) { // a 未校验就直接引用成员函数 read()，可能出现空指针引用
+        return
+    }
+    unsafe { GetInt32PointerFromCangjie(a) }
+}
+
+```
+
+【正例】
+
+
+指针引用前先进行校验。
+
+
+
+```
+foreign func PassInt32PointerToCangjie(): CPointer<Int32>
+foreign func GetInt32PointerFromCangjie(a: CPointer<Int32>): Unit
+
+main() {
+    var a = unsafe { PassInt32PointerToCangjie() } // 此处从 C 语言接收指针
+    if (a.isNull()) { // 指针接收后先校验
+        print("pointer is null!\n")
+        return
+    }
+    if (unsafe { a.read() != 2147483647 }) { // a 未校验就直接引用成员函数 read()，可能出现空指针引用
+        return
+    }
+    unsafe { GetInt32PointerFromCangjie(a) }
+}
+
+```
+
+#### [FFI.C.4 资源不再使用时应予以关闭或释放](#ffic4-资源不再使用时应予以关闭或释放)
+
+
+【级别】要求
+
+
+【描述】
+
+
+在仓颉和 C 语言交互时，可能会手动申请内存、句柄等系统资源，这些资源不再使用时应予以关闭或释放。
+
+
+若需要分配或释放 C 侧的内存，需要在 C 语言侧提供内存分配和释放的接口，在仓颉侧调用对应的接口。若没有封装接口，则需要根据 C 语言规范要求，在 C 语言侧合理使用 `free` 或者 `close` 等函数进行释放。
+
+
+如果是在仓颉侧直接调用 C 语言库函数分配内存，例如 `LibC.malloc` 等，如果分配内存成功，在使用完后也必须在仓颉侧调用 `LibC.free` 等内存释放函数来释放内存。
+
+
+【反例】
+
+
+仓颉侧自行分配和释放内存。下述示例代码中，使用完 `CString` 字符串，但之后没有调用相应的释放函数，导致内存泄漏。
+
+
+
+```
+foreign func printf(fmt: CString, ...): Int32
+
+main() {
+    var str = unsafe { LibC.mallocCString("hello world!\n") }
+    unsafe { printf(str) }
+    // 使用完后没有释放 str 的内存
+}
+
+```
+
+【正例】
+
+
+下述示例中，使用完 `CString` 字符串后及时调用 `LibC.free` 来释放内存，消除了上述风险。
+
+
+
+```
+foreign func printf(fmt: CString, ...): Int32
+
+main() {
+    var str = unsafe { LibC.mallocCString("hello world!\n") }
+    unsafe { printf(str) }
+    unsafe { LibC.free(str) }    // 使用完后释放内存
+}
+
+```
+
+【反例】
+
+
+若 C 侧提供内存释放函数，则需要在仓颉侧进行调用来释放内存。
+
+
+
+```
+// CTest.c
+#include<stdio.h>
+#include<stdint.h>
+#include<stdlib.h>
+int* SetMem() {
+    // 分配内存
+    int* a = (int*)malloc(sizeof(int));
+    if (a == NULL) {
+        return NULL;
+    }
+    *a = 123;
+    return a;
+}
+
+void FreeMem(int* a) {
+    // 释放内存
+    if (a == NULL) {
+        printf("Pointer a is NULL!\n");
+        return;
+    }
+    free(a);
+}
+
+```
+
+
+```
+// CJTest.cj
+foreign func SetMem(): CPointer<Int32>
+
+main() {
+    var a: CPointer<Int32> = unsafe { SetMem() }
+    // do something
+    // 此处函数直接返回，未调用 C 侧释放函数来释放之前分配的内存
+}
+
+```
+
+【正例】
+
+
+
+```
+// CJTest.cj
+foreign func SetMem(): CPointer<Int32>
+foreign func FreeMem(a: CPointer<Int32>): Unit
+
+main() {
+    var a: CPointer<Int32> = unsafe { SetMem() }
+    // do something
+    unsafe { FreeMem(a) } // 使用完后及时释放内存
+    a = CPointer<Int32>() // 将 a 置为空
+}
+
+```
+
+【影响】如果资源在结束使用前未正确地关闭或释放，会造成系统的内存泄漏、句柄泄漏等资源泄漏漏洞。如果攻击者可以有意触发资源泄漏，则可能能够通过耗尽资源来发起拒绝服务攻击。
+
+
+#### [FFI.C.5 禁止访问已经释放过的资源](#ffic5-禁止访问已经释放过的资源)
+
+
+【级别】要求
+
+
+【描述】
+
+
+如果从 C 语言侧接收到的指针已经进行过释放操作，那么禁止在仓颉侧再次使用这些指针的值，也不得再引用负责接收这些指针的变量，否则可能会造成安全问题，如解引用已释放的内存的指针、再次释放这些指针的内存等。
+
+
+再次使用已释放内存的指针，可能因为访问无效内存导致程序崩溃，建议在释放内存后将指针显式置空，在下次使用前进行判空校验。
+
+
+【反例】
+
+
+
+```
+// CTest.c
+#include<stdio.h>
+#include<stdint.h>
+#include<stdlib.h>
+int* SetMem() {
+    // 分配内存
+    int* a = (int*)malloc(sizeof(int));
+    *a = 123;
+    return a;
+}
+
+void FreeMem(int* a) {
+    // 释放内存
+    if (a == NULL) {
+        printf("Pointer a is NULL!\n");
+        return;
+    }
+    free(a);
+}
+
+```
+
+
+```
+// CJTest.cj
+foreign func SetMem(): CPointer<Int32>
+foreign func FreeMem(a: CPointer<Int32>): Unit
+
+var a = CPointer<Int32>()
+
+func Foo() {
+    a = unsafe { SetMem() }
+    // 指针校验和其它操作
+    unsafe { FreeMem(a) } // 调用 C 侧 free 之后指针实际不为空，a 为野指针
+}
+
+func Foo2() {
+    if (!a.isNull()) { // 此处判空校验无效，会被绕过
+        unsafe { a.read(0) } // 此处会被执行，访问非法地址
+    }
+}
+
+main() {
+    Foo()
+    Foo2()
+}
+
+```
+
+【正例】
+
+
+
+```
+// CJTest.cj
+foreign func SetMem(): CPointer<Int32>
+foreign func FreeMem(a: CPointer<Int32>): Unit
+
+var a = CPointer<Int32>()
+
+func Foo() {
+    a = unsafe { SetMem() }
+    // 使用指针
+    unsafe { FreeMem(a) }
+    a = CPointer<Int32>() // 建议使用完后将指针置为空，避免了使用已释放内存的问题。
+}
+
+func Foo2() {
+    if (!a.isNull()) { // 此处校验有效，指针 a 为空，因此不会进入此分支，避免 use after free
+        unsafe { a.read(0) }
+    }
+}
+
+main() {
+    Foo()
+    Foo2()
+}
+
+```
+
+#### [FFI.C.6 外部数据作为 `read()` 和 `write()` 函数索引时必须确保在有效范围内](#ffic6-外部数据作为-read-和-write-函数索引时必须确保在有效范围内)
+
+
+【级别】要求
+
+
+【描述】
+
+
+由于仓颉的 `CPointer<T>` 类的成员函数 `read()` 和 `write()` 支持设置索引，因此可能会使用来自外部的数据作为函数的索引。当使用外部数据作为函数索引时，需要确保其在索引的有效范围内, 否则可能会出现越界访问的风险。
+
+
+【反例】
+
+
+
+```
+// CTest.c
+#include<stdio.h>
+#include<stdint.h>
+#include<stdlib.h>
+int* PassPointerToCangjie() {
+    int *p = (int*)malloc(sizeof(int) * 5);
+    if ( p == NULL) {
+        return NULL;
+    }
+    for (int i = 0; i < 5; i++) {
+        p[i] = i;
+    }
+    return p;
+}
+
+void GetPointerFromCangjie(int *a, int len)
+{
+    if ( a == NULL) {
+        printf("Pointer a is null!\n");
+        return;
+    }
+    for (int i = 0; i < len; i++) {
+        printf("%d ", a[i]);
+    }
+}
+
+```
+
+
+```
+// CJTest.cj
+foreign func printf(fmt: CString, ...): Int32
+foreign func PassPointerToCangjie(): CPointer<Int32>
+foreign func GetPointerFromCangjie(a: CPointer<Int32>, len: Int32): Unit
+
+func Foo(index: Int64) {
+    var a: CPointer<Int32> = unsafe { PassPointerToCangjie() } // 接收的数组指针索引范围为 0-4
+    if (a.isNull()) {
+        return
+    }
+    var value = unsafe { LibC.mallocCString("%d\n") }
+    unsafe { printf(value, a.read(index)) } // 此处 index 值为函数入参，有可能为外部输入数据
+    unsafe { a.write(index, 123) } // 没有校验就直接作为数组索引，可能会导致越界访问
+    var len: Int32 = 5
+    unsafe { GetPointerFromCangjie(a, len) }
+    unsafe { LibC.free(value) }
+}
+
+main() {
+    var index: Int64 = 3
+    Foo(index) //不会越界
+
+    var index2: Int64 = 5
+    Foo(index2) //发生越界
+}
+
+```
+
+【正例】
+
+
+
+```
+// CJTest.cj
+foreign func printf(fmt: CString, ...): Int32
+foreign func PassPointerToCangjie(): CPointer<Int32>
+foreign func GetPointerFromCangjie(a: CPointer<Int32>, len: Int32): Unit
+
+let MAX: Int64 = 4
+
+func Foo(index: Int64) {
+    var a: CPointer<Int32> = unsafe { PassPointerToCangjie() } // 接收的数组指针索引范围为 0-4
+    let value = unsafe { LibC.mallocCString("%d\n") }
+    if (index < 0 || index> MAX) { // 对函数入参进行合理的校验
+        return
+    }
+    unsafe { printf(value, a.read(index)) }
+    unsafe { a.write(index, 123) }
+    var len: Int32 = 5
+    unsafe { GetPointerFromCangjie(a, len) }
+    unsafe { LibC.free(value) }
+}
+
+main() {
+    var index: Int64 = 3
+    Foo(index) //不会越界
+
+    var index2: Int64 = 5
+    Foo(index2) //校验不通过，不会发生越界
+}
+
+```
+
+【影响】未对外部数据中的整数值进行限制可能导致拒绝服务，缓冲区溢出，信息泄露，甚至执行任意代码。
+
+
+#### [FFI.C.7 强制进行指针类型转换时避免出现截断错误](#ffic7-强制进行指针类型转换时避免出现截断错误)
+
+
+【级别】要求
+
+
+【描述】
+
+
+仓颉中的不同指针类型间相互进行强制转换时，需要注意强制类型转换前后内存中的数据是不变的，但可能出现元素的合并和拆分的情况，元素个数也可能因此发生变化，使用者必须充分了解数据的内存分布情况，否则不要使用强制指针类型转换。
+
+
+【反例】
+
+
+如下示例，将 Int32 类型指针强制转换成 Int16 型，会将数据截断为低两位和高两位，但内存中的数据实际并没有变化，可以通过成员函数 `read()` 访问，如 `read(0)` 访问低两位数据，`read(1)` 访问高两位数据，元素个数由原来的一个变成了两个，并且都可以通过索引访问到内存，但访问第二个元素的时候实际上是越界访问内存。
+
+
+
+```
+// CTest.c
+#include<stdio.h>
+#include<stdint.h>
+#include<stdlib.h>
+int *PassPointerToCangjie() {
+    int *p = (int *)malloc(sizeof(int));
+    if (p == NULL)
+        return NULL;
+    *p = 0x1234;
+    return p;
+}
+
+```
+
+
+```
+foreign func printf(fmt: CString, ...): Int32
+foreign func PassPointerToCangjie(): CPointer<Int32>
+
+main() {
+    var a: CPointer<Int32> = unsafe { PassPointerToCangjie() }
+    var b: CPointer<Int16> = CPointer<Int16>(a) // 此处将 Int32 类型指针强制转换成 Int16 型
+    if (b.isNull()) {
+        print("pointer is null!\n")
+        return
+    }
+    if (unsafe { b.read() != 0 }) {
+        print("Pointer was cut!\n")
+        var value = unsafe { LibC.mallocCString("%x\n") }
+        unsafe { printf(value, b.read(1)) } // read(1) 访问 Int16 的高两位数据，可能造成越界访问
+        unsafe { LibC.free(value) }
+        return
+    }
+    var value = unsafe { LibC.mallocCString("%x\n") }
+    unsafe { printf(value, b.read(0)) }
+    unsafe { LibC.free(value) }
+}
+
+```
+
+【正例】
+
+
+谨慎使用强制指针类型转换。
+
+
+
+```
+foreign func printf(fmt: CString, ...): Int32
+foreign func PassPointerToCangjie(): CPointer<Int32>
+
+main() {
+    var a: CPointer<Int32> = unsafe { PassPointerToCangjie() }
+    // 删除此处的强制类型转换
+    if (a.isNull()) {
+        print("pointer is null!\n")
+        return
+    }
+    if (unsafe { a.read() != 0 }) {
+        print("Pointer a was cut!\n")
+        var value = unsafe { LibC.mallocCString("%x\n") }
+        unsafe { printf(value, a.read(0)) }
+        unsafe { LibC.free(value) }
+        return
+    }
+    var value = unsafe { LibC.mallocCString("%x\n") }
+    unsafe { printf(value, a.read(0)) }
+    unsafe { LibC.free(value) }
+}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

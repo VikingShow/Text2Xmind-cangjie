@@ -5,48 +5,107 @@ import magic.prelude.*
 import magic.config.Config
 import std.fs.*
 
-
+const MARKDOWNIFY_DIR = "markdownify-mcp"
+const INPUT = "input"
+const MARKDOWN_OUTPUT_DIR = "markdown_output"
+// const XMINDMARK_OUTPUT_DIR = "xmindmark_output"
+// const XMIND_OUTPUT_DIR = "xmind_output"
 
 @agent[
     model: "deepseek:deepseek-chat",
+    executor: "naive",
+    rag: {
+        source: "source/tutorial.md",
+        mode: "static"
+    }
 ]
-class Text2Xmind {
-    @prompt[pattern: ARM](
-        analyze: "请分析文章的整体结构，将其划分为若干主题及子主题。",
-        refining: "请针对每个主题与子主题，提炼目录结构及每部分的关键内容。",
-        toMap: "请将提炼结果转换为符合 Markdown 格式的思维导图内容，适用于 XMind 软件导入，注意 Markdown 语法和层级结构正确。"
+class QABot {
+    @prompt[pattern: ERA] (
+        expectation: "代码块被标签 ```cangjie 和 ```包裹",
+        role: "简单问答助手",
+        action: "搜索文档获取知识并回答问题"
     )
 }
 
-@promptPattern
-class ARM {
-    @element[description: "分析文章结构，将文章按主题和子主题进行内容划分"]
-    let analyze: String
+@agent[
+    model: "deepseek:deepseek-chat",
+    executor: "naive",
+    // tools: [pdf-to-markdown]
+    mcp: [
+        { command: "node", args: [ "${MARKDOWNIFY_DIR}/dist/index.js"] },
+        // stdio("node ${MARKDOWNIFY_DIR}/dist/index.js args"),
+        // tools(pdf-to-markdown)
+    ]
+]
+class pdf2markdown {
+    @prompt[pattern: ERA] (
+        expectation: "生成逻辑严谨、内容流畅的，适合于xmind软件的markdown文档",
+        role: "其他格式的文件转成markdown文档的助手",
+        action: "利用mcp工具将其他格式的文件转为markdown文档"
+    )
+}
 
-    @element[description: "按照分析出的文章主题与子主题，提炼出文章的目录及每个主题下的概述内容"]
-    let refining: String
 
-    @element[description: "按照抽象出的目录，写出符合 Markdown 格式的思维导图"]
-    let toMap: String
 
-    public func toString(): String {
-        return "分析：${analyze}\n提炼：${refining}\n生成思维导图：${toMap}"
-        // return "...${analyze}...${refining}...${toMap}..."
+func Convertor(path: String, agent: Agent, outputPath: String, description: String) {
+    if(!File.exists(path)){
+        println("错误：输入路径不存在 - ${path}")
+        return
+    }
+    if (!Directory.exists(outputPath)) {
+        Directory.create(outputPath, recursive:true)
+        println("已创建输出目录：${outputPath}")
+    }
+    if (!File(path, Open(true,false)).canRead()){
+        println("错误：无法读取文件 - ${path}")
+        return
+    }
+    for (file in path) {
+        try {
+            let agent = agent
+            let content = File.readFrom(String.fromUtf8(file))
+            let request = AgentRequest(content.toString())
+            let result = agent.asyncChat(request)
+            File.writeTo(outputPath, result.content.toArray())
+            println("${description}阶段的${file}转换成功！")
+        } catch(e: Exception){
+            // var errorDetails = while {
+            //     e is FileNotFoundException -> "文件未找到"
+
+            // }
+            let errorMessage = "${description}出现错误，" + e.message
+            println(errorMessage)
+            File.writeTo("error.log", "${errorMessage}\n".toArray())
+        }
     }
 }
 
 
 main() {
     Config.env["DEEPSEEK_API_KEY"] = "sk-fa13582775314772a81935ab04d056e5"
-    let inputPath = "C:/Users/SowrJam/workspace/Magic/input/18课.md"
-    let outputPath = "C:/Users/SowrJam/workspace/Magic/output/思维导图.md"
+    Config.defaultEmbeddingModel = ModelManager.createEmbeddingModel("ollama:nomic-embed-text")
 
-    let input = File.readFrom(inputPath)
-    let agent = Text2Xmind()
-    let result = agent.chat("请根据以下文章内容生成符合 Markdown 格式的思维导图，适用于 XMind 导入：\n\n" + input.toString())
+    let agent1 = pdf2markdown()
+    Convertor(INPUT, agent1, "${MARKDOWN_OUTPUT_DIR}","PDF转markdown")
 
-    // println(result)
-
-    File.writeTo(outputPath, result.toArray())
-    println("转换成功！思维导图已输出至：" + outputPath)
+    if (File.exists("error.log")) {
+        let errorContent = File.readFrom("error.log").toString()
+        let codeContent = File.readFrom("src/main.cj").toString()
+        let qaBot = QABot()
+        let request = AgentRequest(errorContent+"出现上述问题，我该如何解决，下面是我的代码，请给出代码优化建议："+codeContent)
+        let result = qaBot.asyncChat(request)
+        // println("QABot建议： \n" + result.content.toString())
+        for (chunk in result) {
+            print(chunk)
+        }
+        println("\n---end---")
+        if (let Some(info) <- result.execInfo) {
+            for (info in info.retrievalInfo) {
+                for (doc in info.retrieval.sources) {
+                    println(doc.metadata)
+                }
+            }
+        }
+    }
+    
 }

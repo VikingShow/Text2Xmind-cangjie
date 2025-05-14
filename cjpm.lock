@@ -1,4 +1,4 @@
 version = 0
 
 [requires]
-  magic = {branch = "dev", commitId = "fa4d35a65e3aca779f006a251c31853fdd32a864", git = "https://gitcode.com/Cangjie-TPC/CangjieMagic.git"}
+  magic = {branch = "dev", commitId = "95aa28a4c334293f25c4e7146f5f141807b73c41", git = "https://gitcode.com/Cangjie-TPC/CangjieMagic.git"}

@@ -1,0 +1,141 @@
+
+
+
+
+
+
+命令行工具使用指南 \- 仓颉语言工具使用指南
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1. [**1\.** IDE 插件使用指南](../../source_zh_cn/IDE/user_manual_community.html)
+2. [**2\.** 命令行工具使用指南](../../source_zh_cn/tools/user_manual_cjnative.html)❱
+3. 1. [**2\.1\.** 包管理工具](../../source_zh_cn/tools/cjpm_manual_cjnative_community.html)
+	2. [**2\.2\.** 调试工具](../../source_zh_cn/tools/cjdb_manual_cjnative.html)
+	3. [**2\.3\.** 静态检查工具](../../source_zh_cn/tools/cjlint_manual_community.html)
+	4. [**2\.4\.** 格式化工具](../../source_zh_cn/tools/cjfmt_manual.html)
+	5. [**2\.5\.** 覆盖率工具](../../source_zh_cn/tools/cjcov_manual_cjnative.html)
+	6. [**2\.6\.** 性能分析工具](../../source_zh_cn/tools/cjprof_manual_cjnative.html)
+	7. [**2\.7\.** API文档生成工具](../../source_zh_cn/tools/cjdoc_manual.html)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+* Light
+* Rust
+* Coal
+* Navy
+* Ayu
+
+
+
+
+
+
+仓颉语言工具使用指南
+==========
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[仓颉语言命令行工具使用指南](#仓颉语言命令行工具使用指南)
+===============================
+
+
+仓颉语言提供了一系列命令行工具供开发者使用。在成功安装仓颉工具链后，即可根据手册说明使用这些命令行工具。仓颉工具链安装说明详见[入门指南](../../../AI/source_zh_cn/Chapter_02_Getting_Started.html)。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
