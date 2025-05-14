@@ -6,13 +6,13 @@
     "files.autoSave": "onFocusChange",
     "editor.suggest.snippetsPreventQuickSuggestions": false,
     "editor.quickSuggestions": {
-        "other": "on",
-        "comments": "off",
-        "strings": "on"
+      "other": "on",
+      "comments": "off",
+      "strings": "on"
     },
     "terminal.integrated.env.windows": {
-        "CANGJIE_HOME": "C:\\Users\\SowrJam\\root\\opt\\cangjie5318",
-        "CANGJIE_PATH": "C:\\Users\\SowrJam\\root\\opt\\cangjie5318\\runtime\\lib\\windows_x86_64_llvm;C:\\Users\\SowrJam\\root\\opt\\cangjie5318\\bin;C:\\Users\\SowrJam\\root\\opt\\cangjie5318\\tools\\bin;C:\\Users\\SowrJam\\root\\opt\\cangjie5318\\debugger\\bin;",
-        "PATH": "${config:terminal.integrated.env.windows.CANGJIE_PATH};${env:PATH}"
+      "CANGJIE_HOME": "C:\\Users\\SowrJam\\root\\opt\\cangjie5318",
+      "CANGJIE_PATH": "C:\\Users\\SowrJam\\root\\opt\\cangjie5318\\runtime\\lib\\windows_x86_64_llvm;C:\\Users\\SowrJam\\root\\opt\\cangjie5318\\bin;C:\\Users\\SowrJam\\root\\opt\\cangjie5318\\tools\\bin;C:\\Users\\SowrJam\\root\\opt\\cangjie5318\\debugger\\bin;",
+      "PATH": "${config:terminal.integrated.env.windows.CANGJIE_PATH};${env:PATH}"
     }
 }
