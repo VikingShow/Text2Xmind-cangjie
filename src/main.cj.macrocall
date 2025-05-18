@@ -29,7 +29,7 @@ const XMIND_OUTPUT_DIR = "xmind_output"
 /* ===== Emitted by MacroCall @agent in main.cj:29:1 ===== */
 /* 29.1 */class QABot <: UserDefinedAgent {
 /* 29.2 */    private func __SYSTEM_PROMPT_FUNC__(): String {
-/* 29.3 */        let pattern = ERA(expectation: "代码块被标签 ```cangjie 和 ```包裹", role: "简单问答助手", action: "搜索文档获取知识并回答问题")
+/* 29.3 */        let pattern = ERA(expectation: "代码块被标签 ```cangjie 和 ```包裹", role: "简单问答助手", action: "搜索 markdown.db 中的内容获取仓颉编程语言的文档并用仓颉语言回答问题")
 /* 29.4 */        return pattern.toString()
 /* 29.5 */    }
 /* 29.6 */    
@@ -740,7 +740,7 @@ main() {
         let errorContent = File.readFrom("error.log").toString()
         let codeContent = File.readFrom("src/main.cj").toString()
         let qaBot = QABot()
-        let request = AgentRequest(errorContent+"出现上述问题，我该如何解决，下面是我的代码，请给出代码优化建议："+codeContent)
+        let request = AgentRequest(errorContent+"出现上述问题，我该如何解决，下面是我的代码，请给出代码优化建议，请用中文回答："+codeContent)
         let result = qaBot.asyncChat(request)
         // println("QABot建议： \n" + result.content.toString())
         for (chunk in result) {

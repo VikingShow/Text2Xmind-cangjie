@@ -35,14 +35,14 @@ class QABot {
     @prompt[pattern: ERA] (
         expectation: "代码块被标签 ```cangjie 和 ```包裹",
         role: "简单问答助手",
-        action: "搜索文档获取知识并回答问题"
+        action: "搜索 markdown.db 中的内容获取仓颉编程语言的文档并用仓颉语言回答问题"
     )
 }
 
 @agent[
     model: "deepseek:deepseek-chat",
     executor: "naive",
-    // tools: [pdf-to-markdown]
+    // tools: [PDFToMarkdownTool]
     mcp: [
         { command: "node", args: [ "${MARKDOWNIFY_DIR}/dist/index.js"] },
         // stdio("node ${MARKDOWNIFY_DIR}/dist/index.js args"),
@@ -158,7 +158,7 @@ main() {
         let errorContent = File.readFrom("error.log").toString()
         let codeContent = File.readFrom("src/main.cj").toString()
         let qaBot = QABot()
-        let request = AgentRequest(errorContent+"出现上述问题，我该如何解决，下面是我的代码，请给出代码优化建议："+codeContent)
+        let request = AgentRequest(errorContent+"出现上述问题，我该如何解决，下面是我的代码，请给出代码优化建议，请用中文回答："+codeContent)
         let result = qaBot.asyncChat(request)
         // println("QABot建议： \n" + result.content.toString())
         for (chunk in result) {
