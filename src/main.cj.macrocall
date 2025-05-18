@@ -280,7 +280,7 @@ const XMIND_OUTPUT_DIR = "xmind_output"
 /* 42.93 */                    }
 /* 42.94 */                }
 /* 42.95 */                
-/* 42.96 */                let client_0 = StdioMCPClient("node",["${MARKDOWNIFY_DIR}/dist/index.js"], env:[])
+/* 42.96 */                let client_0 = StdioMCPClient("node",["C:/Users/SowrJam/workspace/Magic/markdownify-mcp/dist/index.js"], env:[])
 /* 42.97 */                tm.addTools(client_0.getTools())
 /* 42.98 */                
 /* 42.99 */                
@@ -722,9 +722,8 @@ func Convertor(path: String, agent: Agent, outputDir: String, description: Strin
 
     
 main() {
-    Config.env["DEEPSEEK_API_KEY"] = "sk-fa13582775314772a81935ab04d056e5"
-    // Config.env["DEEPSEEK_API_KEY"] = "sk-aZ0u9pVmNFuWogl0E4E00aC27eC5411593FdFe56D4E5384a"
-    // Config.env["DEEPSEEK_API_KEY"] = System.getenv("DEEPSEEK_API_KEY")
+    let key = File.readFrom(".key")
+    Config.env["DEEPSEEK_API_KEY"] = key.toString()
     Config.defaultEmbeddingModel = ModelManager.createEmbeddingModel("ollama:nomic-embed-text")
 
     var agents = ArrayList(

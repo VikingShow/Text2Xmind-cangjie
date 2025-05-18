@@ -1,1 +1,10 @@
-Array contains empty value: [{ command: "node", args:["${MARKDOWNIFY_DIR}/dist/index.js"] },]
+Array contains empty value: [{ command: "node", args:["C:/Users/SowrJam/workspace/Magic/markdownify-mcp/dist/index.js"] },]
+[33mwarning[0m: unused variable:'MARKDOWNIFY_DIR'
+ [36m==>[0m C:\Users\SowrJam\workspace\Magic\src\main.cj:9:7:
+  [36m| [0m
+[36m9[0m [36m| [0mconst MARKDOWNIFY_DIR = "markdownify-mcp"[0m
+  [36m| [0m      [33m^^^^^^^^^^^^^^^ unused variable[0m
+  [36m| [0m
+  [36m#[0m [0mnote[0m: this warning can be suppressed by setting the compiler option `-Woff unused`
+
+1 warning generated, 1 warning printed.

@@ -44,7 +44,7 @@ class QABot {
     executor: "naive",
     // tools: [PDFToMarkdownTool]
     mcp: [
-        { command: "node", args: [ "${MARKDOWNIFY_DIR}/dist/index.js"] },
+        { command: "node", args: [ "C:/Users/SowrJam/workspace/Magic/markdownify-mcp/dist/index.js"] },
         // stdio("node ${MARKDOWNIFY_DIR}/dist/index.js args"),
         // tools(pdf-to-markdown)
     ]
@@ -140,9 +140,8 @@ func Convertor(path: String, agent: Agent, outputDir: String, description: Strin
 
     
 main() {
-    Config.env["DEEPSEEK_API_KEY"] = "sk-fa13582775314772a81935ab04d056e5"
-    // Config.env["DEEPSEEK_API_KEY"] = "sk-aZ0u9pVmNFuWogl0E4E00aC27eC5411593FdFe56D4E5384a"
-    // Config.env["DEEPSEEK_API_KEY"] = System.getenv("DEEPSEEK_API_KEY")
+    let key = File.readFrom(".key")
+    Config.env["DEEPSEEK_API_KEY"] = key.toString()
     Config.defaultEmbeddingModel = ModelManager.createEmbeddingModel("ollama:nomic-embed-text")
 
     var agents = ArrayList(
