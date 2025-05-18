@@ -141,6 +141,7 @@ func Convertor(path: String, agent: Agent, outputDir: String, description: Strin
     
 main() {
     Config.env["DEEPSEEK_API_KEY"] = "sk-fa13582775314772a81935ab04d056e5"
+    // Config.env["DEEPSEEK_API_KEY"] = "sk-aZ0u9pVmNFuWogl0E4E00aC27eC5411593FdFe56D4E5384a"
     // Config.env["DEEPSEEK_API_KEY"] = System.getenv("DEEPSEEK_API_KEY")
     Config.defaultEmbeddingModel = ModelManager.createEmbeddingModel("ollama:nomic-embed-text")
 
@@ -150,15 +151,29 @@ main() {
         xmindmarkdown2xmind()
     )
 
+    let dirs = [MARKDOWN_OUTPUT_DIR, XMINDMARK_OUTPUT_DIR, XMIND_OUTPUT_DIR]
+    for (dir in dirs) {
+        try {
+            Directory.create(dir, recursive: true)
+        } catch (e: Exception) {
+            println("无法创建目录 ${dir}: ${e.message}")
+            return
+        }
+    }
+
     Convertor(INPUT, agents[0], MARKDOWN_OUTPUT_DIR,"PDF转markdown", "md")
     Convertor(MARKDOWN_OUTPUT_DIR, agents[1], XMINDMARK_OUTPUT_DIR, "markdown转xmindmark", "xmindmark")
     Convertor(XMINDMARK_OUTPUT_DIR, agents[2], XMIND_OUTPUT_DIR, "xmindmark转xmind", "xmind")
 
     if (File.exists("error.log")) {
-        let errorContent = File.readFrom("error.log").toString()
-        let codeContent = File.readFrom("src/main.cj").toString()
+        // let errorContent = File.readFrom("error.log").toString()
+        let errorContent = String.fromUtf8(File.readFrom("error.log"))
+
+        // let codeContent = File.readFrom("src/main.cj").toString()
+        let codeContent = String.fromUtf8(File.readFrom("src/main.cj"))
+
         let qaBot = QABot()
-        let request = AgentRequest(errorContent+"出现上述问题，我该如何解决，下面是我的代码，请给出代码优化建议，请用中文回答："+codeContent)
+        let request = AgentRequest(errorContent+"出现上述问题，我该如何解决，下面是我的代码，请给出代码优化建议："+codeContent)
         let result = qaBot.asyncChat(request)
         // println("QABot建议： \n" + result.content.toString())
         for (chunk in result) {
