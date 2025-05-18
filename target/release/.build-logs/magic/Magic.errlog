@@ -1,1 +1,0 @@
-Array contains empty value: [{ command: "node", args:["${MARKDOWNIFY_DIR}/dist/index.js"] },]
